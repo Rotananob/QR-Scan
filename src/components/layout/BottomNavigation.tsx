@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { ScanLine, History, Star, Settings } from 'lucide-react';
+import { ScanLine, History, Star, Settings, Info } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../../utils/cn';
 
@@ -12,6 +12,7 @@ export const BottomNavigation: React.FC = () => {
     { to: '/history', icon: History, label: t('nav.history'), end: false },
     { to: '/favorites', icon: Star, label: t('nav.favorites'), end: false },
     { to: '/settings', icon: Settings, label: t('nav.settings'), end: false },
+    { to: '/about', icon: Info, label: t('about.title'), end: false },
   ];
 
   return (

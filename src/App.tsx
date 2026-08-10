@@ -12,10 +12,12 @@ const ScannerPage = lazy(() => import('./pages/Scanner').then(m => ({ default: m
 const HistoryPage = lazy(() => import('./pages/History').then(m => ({ default: m.HistoryPage })));
 const FavoritesPage = lazy(() => import('./pages/Favorites').then(m => ({ default: m.FavoritesPage })));
 const SettingsPage = lazy(() => import('./pages/Settings').then(m => ({ default: m.SettingsPage })));
+const AboutPage = lazy(() => import('./pages/About').then((m) => ({ default: m.AboutPage })));
 
 const PageSkeleton = () => (
-  <div className="flex-1 flex items-center justify-center">
-    <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+  <div className="p-4 space-y-4 animate-pulse">
+    <div className="h-48 bg-slate-200 dark:bg-white/5 rounded-2xl w-full max-w-sm mx-auto" />
+    <div className="h-10 bg-slate-200 dark:bg-white/5 rounded-xl w-3/4 mx-auto" />
   </div>
 );
 
@@ -45,6 +47,7 @@ const AppShell: React.FC = () => {
                 <Route path="/history" element={<HistoryPage />} />
                 <Route path="/favorites" element={<FavoritesPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/about" element={<AboutPage />} />
               </Routes>
             </Suspense>
           </div>
