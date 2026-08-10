@@ -108,5 +108,17 @@
     "privacyDesc": "Your privacy is our top priority. This app runs entirely locally on your device. All scans and history are stored locally. No data is ever sent to any external servers.",
     "contact": "Contact",
     "github": "Visit my GitHub"
+  },
+  "safeLink": {
+    "dangerousTitle": "Dangerous Link Blocked",
+    "openTitle": "Open External Link?",
+    "dangerousProtocol": "Dangerous protocol blocked",
+    "dangerousDesc": "This QR code contains a dangerous protocol ({{protocol}}) that has been blocked for your safety.",
+    "warningDesc": "This QR code points to an external website. Make sure you trust this source before proceeding.",
+    "domain": "Domain",
+    "httpWarning": "HTTP (Not Secure)",
+    "fullUrl": "Full URL",
+    "cancel": "Cancel",
+    "openLink": "Open Link"
   }
 }
