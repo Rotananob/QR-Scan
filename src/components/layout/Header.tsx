@@ -19,9 +19,7 @@ export const Header: React.FC<HeaderProps> = ({ title, right, className }) => {
       )}
     >
       <div className="flex items-center gap-2.5">
-        <div className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center shadow-sm shadow-indigo-500/30">
-          <QrCode className="w-4 h-4 text-white" />
-        </div>
+        <img src="/logo.png" alt="QR Scan Logo" className="w-8 h-8 object-contain rounded-lg shadow-sm" />
         <h1 className="font-bold text-slate-900 dark:text-white text-base">
           {title ?? 'QR Scan'}
         </h1>

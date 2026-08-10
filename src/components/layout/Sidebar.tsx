@@ -17,9 +17,7 @@ export const Sidebar: React.FC = () => {
   return (
     <aside className="w-60 h-screen fixed left-0 top-0 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-r border-slate-200/60 dark:border-white/10 flex flex-col hidden lg:flex z-50">
       <div className="h-16 flex items-center px-6 border-b border-slate-200/60 dark:border-white/10 gap-3">
-        <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-sm shadow-indigo-500/30">
-          <QrCode className="w-5 h-5 text-white" />
-        </div>
+        <img src="/logo.png" alt="QR Scan Logo" className="w-8 h-8 object-contain rounded-lg shadow-sm" />
         <span className="font-bold text-lg text-slate-900 dark:text-white">QR Scan</span>
       </div>
       
