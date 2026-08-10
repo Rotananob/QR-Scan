@@ -1,0 +1,146 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --surface-1: 249 250 251;
+    --surface-2: 243 244 246;
+    --surface-3: 229 231 235;
+  }
+
+  .dark {
+    --surface-1: 17 24 39;
+    --surface-2: 31 41 55;
+    --surface-3: 55 65 81;
+  }
+
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overscroll-behavior: none;
+  }
+
+  /* Safe area support for notched phones */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+}
+
+@layer components {
+  /* Scrollbar styling */
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Scanner frame corners */
+  .scanner-corner-tl {
+    border-top: 3px solid #818cf8;
+    border-left: 3px solid #818cf8;
+    border-top-left-radius: 8px;
+  }
+
+  .scanner-corner-tr {
+    border-top: 3px solid #818cf8;
+    border-right: 3px solid #818cf8;
+    border-top-right-radius: 8px;
+  }
+
+  .scanner-corner-bl {
+    border-bottom: 3px solid #818cf8;
+    border-left: 3px solid #818cf8;
+    border-bottom-left-radius: 8px;
+  }
+
+  .scanner-corner-br {
+    border-bottom: 3px solid #818cf8;
+    border-right: 3px solid #818cf8;
+    border-bottom-right-radius: 8px;
+  }
+}
+
+@layer utilities {
+  /* Translate shorthand helpers */
+  .translate-x-5\.5 {
+    --tw-translate-x: 1.375rem;
+    transform: translateX(var(--tw-translate-x));
+  }
+
+  .translate-x-0\.5 {
+    --tw-translate-x: 0.125rem;
+    transform: translateX(var(--tw-translate-x));
+  }
+
+  /* Shadow glow for scan corners */
+  .shadow-glow-indigo {
+    box-shadow: 0 0 8px 2px rgba(99, 102, 241, 0.7);
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-scan-line,
+    .animate-pulse,
+    .animate-spin,
+    .animate-slide-up,
+    .animate-toast-in,
+    .animate-fade-in {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+}
+
+/* html5-qrcode video override */
+#qr-scanner-container video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: inherit;
+}
+
+#qr-scanner-container img,
+#qr-scanner-container canvas:not([style*='display: block']) {
+  display: none !important;
+}
+
+/* Scan line keyframe fallback */
+@keyframes scan-line {
+  0% {
+    top: 4px;
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    top: calc(100% - 4px);
+    opacity: 1;
+  }
+}
+
+.animate-scan-line {
+  animation: scan-line 2s ease-in-out infinite alternate;
+}
