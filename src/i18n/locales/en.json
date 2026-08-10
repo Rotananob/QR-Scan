@@ -71,7 +71,7 @@
     "version": "Version"
   },
   "results": {
-    "openLink": "Open Link",
+    "openLink": "Open in Browser",
     "sendEmail": "Send Email",
     "call": "Call",
     "sendSms": "Send SMS",
