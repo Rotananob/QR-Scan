@@ -97,5 +97,16 @@
     "password": "Password",
     "security": "Security",
     "content": "Content"
+  },
+  "about": {
+    "title": "About & Privacy",
+    "developer": "Developer",
+    "developerDesc": "This application is developed by Rotana NOB, a Cambodian web developer and creator of IT educational content (Rotana E-Learning).",
+    "purpose": "Purpose",
+    "purposeDesc": "To provide a fast, secure, ad-free, and easy-to-use QR code scanner for everyone.",
+    "privacy": "Privacy Policy",
+    "privacyDesc": "Your privacy is our top priority. This app runs entirely locally on your device. All scans and history are stored locally. No data is ever sent to any external servers.",
+    "contact": "Contact",
+    "github": "Visit my GitHub"
   }
 }
