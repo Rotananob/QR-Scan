@@ -22,15 +22,15 @@ export const Button: React.FC<ButtonProps> = ({
 
   const variants: Record<string, string> = {
     primary:
-      'bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm shadow-indigo-900/30',
+      'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/25 border border-indigo-500/10',
     secondary:
-      'bg-surface-2 dark:bg-surface-2 hover:bg-surface-3 dark:hover:bg-surface-3 text-gray-800 dark:text-gray-100',
+      'bg-surface-2 dark:bg-surface-2 hover:bg-surface-3 dark:hover:bg-surface-3 text-slate-800 dark:text-slate-100 shadow-sm border border-slate-200/50 dark:border-white/5',
     ghost:
-      'hover:bg-white/10 dark:hover:bg-white/10 text-gray-600 dark:text-gray-400',
+      'hover:bg-slate-100 dark:hover:bg-white/10 text-slate-600 dark:text-slate-400',
     danger:
-      'bg-red-600 hover:bg-red-500 text-white shadow-sm shadow-red-900/30',
+      'bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-500/25 border border-red-500/10',
     outline:
-      'border border-gray-200 dark:border-white/10 hover:bg-white/5 text-gray-700 dark:text-gray-300',
+      'border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300 shadow-sm',
   };
 
   const sizes: Record<string, string> = {

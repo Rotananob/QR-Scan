@@ -2,41 +2,43 @@ import React, { useState } from 'react';
 import {
   ExternalLink,
   Copy,
-  Share2,
-  Heart,
-  RotateCcw,
   Mail,
   Phone,
   MessageSquare,
   Wifi,
   MapPin,
   Check,
+  Share2,
+  Star,
+  PlusSquare,
+  ScanLine
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '../common/Button';
 import { SafeLinkModal } from '../common/SafeLinkModal';
 import { copyToClipboard, shareContent, canShare } from '../../services/share';
-import type { QRResult } from '../../types/qr';
-import type { URLData } from '../../types/qr';
+import type { QRResult, URLData, GeoData } from '../../types/qr';
 
 interface ResultActionsProps {
   result: QRResult;
   isFavorite?: boolean;
-  onScanAgain: () => void;
-  onSave: () => void;
+  onScanAgain?: () => void;
+  onSave?: () => void;
   onFavorite?: () => void;
-  onCopy: () => void;
-  onShare: () => void;
+  onCopy?: () => void;
+  onShare?: () => void;
 }
 
 export const ResultActions: React.FC<ResultActionsProps> = ({
   result,
-  isFavorite,
+  isFavorite = false,
   onScanAgain,
-  onSave: _onSave,
+  onSave,
   onFavorite,
   onCopy,
   onShare,
 }) => {
+  const { t } = useTranslation();
   const [safeLinkOpen, setSafeLinkOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -45,13 +47,13 @@ export const ResultActions: React.FC<ResultActionsProps> = ({
     if (ok) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-      onCopy();
+      onCopy?.();
     }
   };
 
   const handleShare = async () => {
     await shareContent(result.raw, result.title);
-    onShare();
+    onShare?.();
   };
 
   const handleOpenLink = () => {
@@ -73,7 +75,7 @@ export const ResultActions: React.FC<ResultActionsProps> = ({
         return (
           <Button onClick={handleOpenLink} className="w-full gap-2" size="lg">
             <ExternalLink className="w-4 h-4" />
-            Open Link
+            {t('results.openLink')}
           </Button>
         );
       case 'EMAIL':
@@ -84,7 +86,7 @@ export const ResultActions: React.FC<ResultActionsProps> = ({
             size="lg"
           >
             <Mail className="w-4 h-4" />
-            Send Email
+            {t('results.sendEmail')}
           </Button>
         );
       case 'PHONE':
@@ -95,7 +97,7 @@ export const ResultActions: React.FC<ResultActionsProps> = ({
             size="lg"
           >
             <Phone className="w-4 h-4" />
-            Call
+            {t('results.call')}
           </Button>
         );
       case 'SMS':
@@ -106,21 +108,21 @@ export const ResultActions: React.FC<ResultActionsProps> = ({
             size="lg"
           >
             <MessageSquare className="w-4 h-4" />
-            Send SMS
+            {t('results.sendSms')}
           </Button>
         );
       case 'WIFI':
         return (
           <Button onClick={handleCopy} className="w-full gap-2" size="lg">
             <Wifi className="w-4 h-4" />
-            Copy Network Info
+            {t('results.copyNetwork')}
           </Button>
         );
       case 'GEO':
         return (
           <Button
             onClick={() => {
-              const geo = result.parsed;
+              const geo = result.parsed as GeoData;
               if (geo?.kind === 'geo') {
                 window.open(
                   `https://maps.google.com/?q=${geo.lat},${geo.lng}`,
@@ -133,7 +135,7 @@ export const ResultActions: React.FC<ResultActionsProps> = ({
             size="lg"
           >
             <MapPin className="w-4 h-4" />
-            Open in Maps
+            {t('results.openMaps')}
           </Button>
         );
       default:
@@ -154,7 +156,7 @@ export const ResultActions: React.FC<ResultActionsProps> = ({
             aria-label="Copy content"
           >
             {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-            {copied ? 'Copied!' : 'Copy'}
+            {copied ? t('results.copied') : t('results.copy')}
           </Button>
 
           {canShare() ? (
@@ -165,35 +167,39 @@ export const ResultActions: React.FC<ResultActionsProps> = ({
               aria-label="Share content"
             >
               <Share2 className="w-4 h-4" />
-              Share
+              {t('results.share')}
             </Button>
           ) : null}
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          {onFavorite && (
+          {onFavorite ? (
             <Button
               variant="outline"
               onClick={onFavorite}
-              className="gap-2"
-              aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+              className={`gap-2 ${isFavorite ? 'text-indigo-600 border-indigo-200 bg-indigo-50 dark:bg-indigo-900/30' : ''}`}
             >
-              <Heart
-                className={`w-4 h-4 ${isFavorite ? 'fill-red-500 text-red-500' : ''}`}
-              />
-              {isFavorite ? 'Saved' : 'Favorite'}
+              <Star className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
+              {isFavorite ? t('results.saved') : t('results.favorite')}
+            </Button>
+          ) : (
+            <Button variant="outline" onClick={onSave} className="gap-2">
+              <PlusSquare className="w-4 h-4" />
+              {t('results.favorite')}
             </Button>
           )}
 
-          <Button
-            variant="outline"
-            onClick={onScanAgain}
-            className="gap-2"
-            aria-label="Scan again"
-          >
-            <RotateCcw className="w-4 h-4" />
-            Scan Again
-          </Button>
+          {onScanAgain && (
+            <Button
+              variant="outline"
+              onClick={onScanAgain}
+              className="gap-2"
+              aria-label="Scan again"
+            >
+              <ScanLine className="w-4 h-4" />
+              {t('results.scanAgain')}
+            </Button>
+          )}
         </div>
       </div>
 

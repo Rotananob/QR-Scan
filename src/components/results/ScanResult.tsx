@@ -1,5 +1,6 @@
 import React from 'react';
 import { CheckCircle, Shield, ShieldOff } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { ContentTypeBadge } from './ContentTypeBadge';
 import { ResultActions } from './ResultActions';
 import type { QRResult } from '../../types/qr';
@@ -24,6 +25,7 @@ export const ScanResult: React.FC<ScanResultProps> = ({
   onCopy,
   onShare,
 }) => {
+  const { t } = useTranslation();
   const urlData = result.parsed?.kind === 'url' ? (result.parsed as URLData) : null;
   const wifiData = result.parsed?.kind === 'wifi' ? (result.parsed as WifiData) : null;
 
@@ -35,7 +37,7 @@ export const ScanResult: React.FC<ScanResultProps> = ({
           <CheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
         </div>
         <div className="flex-1">
-          <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">QR Code Detected</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">{t('results.qrDetected')}</p>
           <p className="text-sm font-semibold text-gray-900 dark:text-white truncate max-w-[220px]">
             {result.title}
           </p>
@@ -55,7 +57,7 @@ export const ScanResult: React.FC<ScanResultProps> = ({
             )}
             <div className="min-w-0">
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                {urlData.isSecure ? 'Secure connection (HTTPS)' : 'Not secure (HTTP)'}
+                {urlData.isSecure ? t('results.secure') : t('results.notSecure')}
               </p>
               <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                 {urlData.hostname}
@@ -68,19 +70,19 @@ export const ScanResult: React.FC<ScanResultProps> = ({
         {wifiData && (
           <div className="p-3 bg-sky-50 dark:bg-sky-900/20 rounded-xl space-y-1.5">
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500 dark:text-gray-400">Network</span>
+              <span className="text-gray-500 dark:text-gray-400">{t('results.network')}</span>
               <span className="font-medium text-gray-900 dark:text-white">{wifiData.ssid}</span>
             </div>
             {wifiData.password && (
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500 dark:text-gray-400">Password</span>
+                <span className="text-gray-500 dark:text-gray-400">{t('results.password')}</span>
                 <span className="font-medium text-gray-900 dark:text-white font-mono">
                   {wifiData.password}
                 </span>
               </div>
             )}
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500 dark:text-gray-400">Security</span>
+              <span className="text-gray-500 dark:text-gray-400">{t('results.security')}</span>
               <span className="font-medium text-gray-900 dark:text-white">
                 {wifiData.encryption || 'None'}
               </span>
@@ -90,7 +92,7 @@ export const ScanResult: React.FC<ScanResultProps> = ({
 
         {/* Raw content */}
         <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-3">
-          <p className="text-xs text-gray-400 mb-1 font-medium">Content</p>
+          <p className="text-xs text-gray-400 mb-1 font-medium">{t('results.content')}</p>
           <p className="text-sm text-gray-800 dark:text-gray-200 break-all leading-relaxed font-mono max-h-24 overflow-y-auto">
             {result.raw}
           </p>

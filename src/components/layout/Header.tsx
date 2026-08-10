@@ -13,8 +13,8 @@ export const Header: React.FC<HeaderProps> = ({ title, right, className }) => {
     <header
       className={cn(
         'sticky top-0 z-30 flex items-center justify-between px-4 h-14',
-        'bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl',
-        'border-b border-gray-200/60 dark:border-white/10',
+        'bg-white/70 dark:bg-slate-950/70 backdrop-blur-2xl',
+        'border-b border-slate-200/50 dark:border-white/5 shadow-sm shadow-slate-200/20 dark:shadow-none',
         className
       )}
     >
@@ -22,7 +22,7 @@ export const Header: React.FC<HeaderProps> = ({ title, right, className }) => {
         <div className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center shadow-sm shadow-indigo-500/30">
           <QrCode className="w-4 h-4 text-white" />
         </div>
-        <h1 className="font-bold text-gray-900 dark:text-white text-base">
+        <h1 className="font-bold text-slate-900 dark:text-white text-base">
           {title ?? 'QR Scan'}
         </h1>
       </div>

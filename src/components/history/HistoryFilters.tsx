@@ -1,17 +1,8 @@
 import React from 'react';
 import { Search, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { QRContentType } from '../../types/qr';
 import { cn } from '../../utils/cn';
-
-const FILTER_OPTIONS: { label: string; value: QRContentType | 'ALL' }[] = [
-  { label: 'All', value: 'ALL' },
-  { label: 'URLs', value: 'URL' },
-  { label: 'Text', value: 'TEXT' },
-  { label: 'Email', value: 'EMAIL' },
-  { label: 'Phone', value: 'PHONE' },
-  { label: 'Wi-Fi', value: 'WIFI' },
-  { label: 'Contact', value: 'VCARD' },
-];
 
 interface HistoryFiltersProps {
   query: string;
@@ -26,6 +17,18 @@ export const HistoryFilters: React.FC<HistoryFiltersProps> = ({
   onQueryChange,
   onFilterChange,
 }) => {
+  const { t } = useTranslation();
+
+  const FILTER_OPTIONS: { label: string; value: QRContentType | 'ALL' }[] = [
+    { label: t('history.filters.all'), value: 'ALL' },
+    { label: t('history.filters.url'), value: 'URL' },
+    { label: t('history.filters.text'), value: 'TEXT' },
+    { label: t('history.filters.email'), value: 'EMAIL' },
+    { label: t('history.filters.phone'), value: 'PHONE' },
+    { label: t('history.filters.wifi'), value: 'WIFI' },
+    { label: t('history.filters.geo'), value: 'GEO' },
+  ];
+
   return (
     <div className="space-y-3">
       {/* Search */}

@@ -24,18 +24,21 @@ const AppShell: React.FC = () => {
   const { toasts, dismissToast } = useContext(AppContext);
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white overflow-hidden">
+    <div className="flex h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white overflow-hidden relative selection:bg-indigo-500/30">
+      {/* Subtle modern background gradient (visible mainly in dark mode) */}
+      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-900/10 via-slate-950/0 to-slate-950/0 dark:from-indigo-500/5 dark:via-slate-950/0 dark:to-slate-950/0" />
+
       {/* Sidebar (desktop only) */}
       {isDesktop && <Sidebar />}
 
       {/* Main content */}
-      <div className={`flex-1 flex flex-col overflow-hidden ${isDesktop ? 'ml-60' : ''}`}>
+      <div className={`flex-1 flex flex-col overflow-hidden relative z-10 ${isDesktop ? 'ml-60' : ''}`}>
         {/* Mobile header only */}
         {!isDesktop && <Header />}
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto">
-          <div className="min-h-full pb-20 lg:pb-0">
+        <main className="flex-1 overflow-y-auto scroll-smooth scrollbar-none">
+          <div className="min-h-full pb-24 lg:pb-8">
             <Suspense fallback={<PageSkeleton />}>
               <Routes>
                 <Route path="/" element={<ScannerPage />} />

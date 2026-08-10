@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useContext } from 'react';
 import { Upload, Keyboard } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
+import { useTranslation } from 'react-i18next';
 import { QRScanner } from '../components/scanner/QRScanner';
 import { ScanResult } from '../components/results/ScanResult';
 import { Button } from '../components/common/Button';
@@ -11,6 +12,7 @@ import { AppContext } from '../context/AppContext';
 import type { QRResult } from '../types/qr';
 
 export const ScannerPage: React.FC = () => {
+  const { t } = useTranslation();
   const { settings, addToHistory, showToast } = useContext(AppContext);
   const [result, setResult] = useState<QRResult | null>(null);
   const [scannerActive, setScannerActive] = useState(true);
@@ -54,7 +56,7 @@ export const ScannerPage: React.FC = () => {
   const handleSave = () => {
     if (!result) return;
     if (savedItemIdRef.current) {
-      showToast('Already saved to history', 'info');
+      showToast(t('results.alreadySaved'), 'info');
       return;
     }
     const id = crypto.randomUUID();
@@ -68,12 +70,12 @@ export const ScannerPage: React.FC = () => {
       createdAt: Date.now(),
       favorite: false,
     });
-    showToast('Saved to history', 'success');
+    showToast(t('results.alreadySaved'), 'success');
   };
 
   const handleFavorite = () => {
     setFavorited(!favorited);
-    showToast(favorited ? 'Removed from favorites' : 'Added to favorites', 'success');
+    showToast(favorited ? t('results.removedFavorites') : t('results.addedFavorites'), 'success');
   };
 
   const handleManualSubmit = () => {
@@ -101,7 +103,7 @@ export const ScannerPage: React.FC = () => {
       scanner.clear();
       handleDetected(result);
     } catch {
-      showToast('No QR code found in this image', 'error');
+      showToast(t('scanner.noQrFound'), 'error');
     } finally {
       setImageLoading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -113,10 +115,10 @@ export const ScannerPage: React.FC = () => {
       {/* Hero */}
       <div className="px-4 pt-4 pb-2 text-center">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-          Scan QR Code
+          {t('scanner.title')}
         </h2>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-          Point your camera at a QR code
+          {t('scanner.subtitle')}
         </p>
       </div>
 
@@ -141,7 +143,7 @@ export const ScannerPage: React.FC = () => {
                 id="upload-image-btn"
               >
                 <Upload className="w-4 h-4" />
-                Upload Image
+                {t('scanner.uploadImage')}
               </Button>
               <Button
                 variant="outline"
@@ -150,7 +152,7 @@ export const ScannerPage: React.FC = () => {
                 id="manual-input-btn"
               >
                 <Keyboard className="w-4 h-4" />
-                Manual Input
+                {t('scanner.manualInput')}
               </Button>
             </div>
           </>
@@ -161,8 +163,8 @@ export const ScannerPage: React.FC = () => {
             onScanAgain={handleScanAgain}
             onSave={handleSave}
             onFavorite={handleFavorite}
-            onCopy={() => showToast('Copied to clipboard', 'success')}
-            onShare={() => showToast('Shared successfully', 'success')}
+            onCopy={() => showToast(t('results.copiedToClipboard'), 'success')}
+            onShare={() => showToast(t('results.sharedSuccess'), 'success')}
           />
         )}
       </div>
@@ -182,16 +184,16 @@ export const ScannerPage: React.FC = () => {
       <Modal
         open={manualOpen}
         onClose={() => setManualOpen(false)}
-        title="Enter QR Content"
+        title={t('scanner.enterContent')}
       >
         <div className="space-y-4">
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Paste or type QR code content to process it without scanning.
+            {t('scanner.manualInstruction')}
           </p>
           <textarea
             value={manualInput}
             onChange={(e) => setManualInput(e.target.value)}
-            placeholder="https://example.com or any QR content…"
+            placeholder="https://example.com…"
             rows={4}
             className="w-full px-3 py-2.5 text-sm bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
             autoFocus
@@ -202,10 +204,10 @@ export const ScannerPage: React.FC = () => {
           />
           <div className="flex gap-3">
             <Button variant="outline" onClick={() => setManualOpen(false)} className="flex-1">
-              Cancel
+              {t('scanner.cancel')}
             </Button>
             <Button onClick={handleManualSubmit} className="flex-1" disabled={!manualInput.trim()}>
-              Process
+              {t('scanner.process')}
             </Button>
           </div>
         </div>

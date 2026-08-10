@@ -48,13 +48,13 @@ export const Modal: React.FC<ModalProps> = ({
 
       {/* Panel */}
       <div
-        className={`relative w-full ${maxWidth} bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-white/10 animate-slide-up`}
+        className={`relative w-full ${maxWidth} bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200/50 dark:border-white/10 animate-slide-up overflow-hidden`}
       >
         {title && (
-          <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-white/10">
+          <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-slate-800/30">
             <h2
               id="modal-title"
-              className="text-lg font-semibold text-gray-900 dark:text-white"
+              className="text-lg font-semibold text-slate-900 dark:text-white"
             >
               {title}
             </h2>
@@ -63,8 +63,9 @@ export const Modal: React.FC<ModalProps> = ({
               size="icon"
               onClick={onClose}
               aria-label="Close modal"
+              className="hover:bg-slate-200/50 dark:hover:bg-white/10"
             >
-              <X className="w-5 h-5" />
+              <X className="w-5 h-5 text-slate-500 dark:text-slate-400" />
             </Button>
           </div>
         )}
