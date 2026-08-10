@@ -20,6 +20,7 @@ export const ScannerPage: React.FC = () => {
   const [manualInput, setManualInput] = useState('');
   const [imageLoading, setImageLoading] = useState(false);
   const [favorited, setFavorited] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const savedItemIdRef = useRef<string | null>(null);
 
@@ -51,6 +52,10 @@ export const ScannerPage: React.FC = () => {
     setFavorited(false);
     savedItemIdRef.current = null;
     setScannerActive(true);
+    if (previewImage) {
+      URL.revokeObjectURL(previewImage);
+      setPreviewImage(null);
+    }
   };
 
   const handleSave = () => {
@@ -89,6 +94,10 @@ export const ScannerPage: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     setImageLoading(true);
+    
+    // Create preview URL
+    const previewUrl = URL.createObjectURL(file);
+    
     const tempId = 'qr-image-decoder';
     let div = document.getElementById(tempId);
     if (!div) {
@@ -99,10 +108,12 @@ export const ScannerPage: React.FC = () => {
     }
     try {
       const scanner = new Html5Qrcode(tempId, { verbose: false });
-      const result = await scanner.scanFile(file, false);
+      const resultText = await scanner.scanFile(file, false);
       scanner.clear();
-      handleDetected(result);
+      setPreviewImage(previewUrl);
+      handleDetected(resultText);
     } catch {
+      URL.revokeObjectURL(previewUrl);
       showToast(t('scanner.noQrFound'), 'error');
     } finally {
       setImageLoading(false);
@@ -160,6 +171,7 @@ export const ScannerPage: React.FC = () => {
           <ScanResult
             result={result}
             isFavorite={favorited}
+            imagePreview={previewImage}
             onScanAgain={handleScanAgain}
             onSave={handleSave}
             onFavorite={handleFavorite}

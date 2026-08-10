@@ -1,5 +1,4 @@
 import React from 'react';
-import { QrCode } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
 interface HeaderProps {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { ScanLine, History, Star, Settings, QrCode } from 'lucide-react';
+import { ScanLine, History, Star, Settings } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../../utils/cn';
 

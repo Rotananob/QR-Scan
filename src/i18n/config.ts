@@ -4,7 +4,7 @@ import { initReactI18next } from 'react-i18next';
 import en from './locales/en.json';
 import km from './locales/km.json';
 
-const savedLang = localStorage.getItem('qr-scan-lang') || 'en';
+const savedLang = localStorage.getItem('qr-scan-lang') || 'km';
 
 i18n
   .use(initReactI18next)
@@ -14,7 +14,7 @@ i18n
       km: { translation: km },
     },
     lng: savedLang,
-    fallbackLng: 'en',
+    fallbackLng: 'km',
     interpolation: {
       escapeValue: false, // react already safes from xss
     },
