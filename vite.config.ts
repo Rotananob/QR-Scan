@@ -7,6 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: false,
       includeAssets: ['favicon.svg', 'icons/*.png'],
       manifest: {
         name: 'QR Scan — Fast & Private QR Code Scanner',
