@@ -9,7 +9,7 @@ import { registerSW } from 'virtual:pwa-register'
 // Register the PWA service worker with immediate update checks and periodic checks
 registerSW({
   immediate: true,
-  onRegistered(r) {
+  onRegistered(r: ServiceWorkerRegistration | undefined) {
     r && setInterval(() => {
       r.update()
     }, 60 * 60 * 1000) // check for updates every hour
