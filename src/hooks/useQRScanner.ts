@@ -67,40 +67,27 @@ export function useQRScanner({
         availableCameras = devices.map((d) => ({ deviceId: d.id, label: d.label }));
         setCameras(availableCameras);
       } catch (err: unknown) {
-        const msg = (err as Error)?.message ?? String(err);
-        if (msg.includes('Permission') || msg.includes('denied')) {
-          setStatus('permission-denied');
-          setError('Camera permission was denied. Please allow camera access in your browser settings.');
-        } else {
-          setStatus('camera-unavailable');
-          setError('No camera found or camera is unavailable.');
-        }
-        return;
-      }
-
-      if (availableCameras.length === 0) {
-        setStatus('camera-unavailable');
-        setError('No camera found on this device.');
-        return;
+        console.warn('Failed to get cameras, will try fallback.', err);
       }
 
       // Prefer rear camera on mobile
       const targetId =
         cameraId ??
-        availableCameras.find((c) =>
-          /(back|rear|environment)/i.test(c.label)
-        )?.deviceId ??
-        availableCameras[0].deviceId;
+        (availableCameras.length > 0
+          ? availableCameras.find((c) => /(back|rear|environment)/i.test(c.label))?.deviceId ?? availableCameras[0].deviceId
+          : undefined);
 
-      setCurrentCameraId(targetId);
+      setCurrentCameraId(targetId ?? null);
       setStatus('starting');
 
       try {
         const scanner = new Html5Qrcode(containerIdRef.current, { verbose: false });
         scannerRef.current = scanner;
 
+        const cameraConfig = targetId ? { deviceId: { exact: targetId } } : { facingMode: 'environment' };
+
         await scanner.start(
-          { deviceId: { exact: targetId } },
+          cameraConfig,
           {
             fps: 10,
             qrbox: { width: 250, height: 250 },
