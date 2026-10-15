@@ -32,7 +32,7 @@ export const HistoryPage: React.FC = () => {
   });
 
   const handleSelect = (item: ScanHistoryItem) => {
-    setSelectedItem(parseQRContent(item.content));
+    setSelectedItem(parseQRContent(item.content, item.formatName));
   };
 
   const handleClearAll = async () => {

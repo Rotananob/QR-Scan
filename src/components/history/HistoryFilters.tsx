@@ -21,6 +21,8 @@ export const HistoryFilters: React.FC<HistoryFiltersProps> = ({
 
   const FILTER_OPTIONS: { label: string; value: QRContentType | 'ALL' }[] = [
     { label: t('history.filters.all'), value: 'ALL' },
+    { label: t('history.filters.khqr', 'KHQR'), value: 'KHQR' },
+    { label: t('history.filters.barcode', 'បាកូដ (Barcode)'), value: 'BARCODE' },
     { label: t('history.filters.url'), value: 'URL' },
     { label: t('history.filters.text'), value: 'TEXT' },
     { label: t('history.filters.email'), value: 'EMAIL' },

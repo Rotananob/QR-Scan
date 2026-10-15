@@ -123,7 +123,9 @@ export const defaultSettings: AppSettings = {
   theme: 'system',
   autoSave: true,
   vibrate: true,
-  sound: false,
+  sound: true,
   preventDuplicates: true,
   autoStartScanner: true,
+  highResolution: true,
+  scanMode: 'all',
 };

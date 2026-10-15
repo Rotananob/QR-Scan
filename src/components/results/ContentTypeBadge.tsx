@@ -11,6 +11,9 @@ import {
   Bitcoin,
   FileText,
   HelpCircle,
+  Barcode,
+  Landmark,
+  Share2,
 } from 'lucide-react';
 import type { QRContentType } from '../../types/qr';
 import { getContentTypeLabel } from '../../services/qrParser';
@@ -25,6 +28,9 @@ const typeConfig: Record<
   QRContentType,
   { icon: React.ElementType; color: string; bg: string }
 > = {
+  KHQR: { icon: Landmark, color: 'text-red-600 dark:text-red-400', bg: 'bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/40' },
+  BARCODE: { icon: Barcode, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/40' },
+  SOCIAL: { icon: Share2, color: 'text-pink-600 dark:text-pink-400', bg: 'bg-pink-50 dark:bg-pink-950/40 border border-pink-200 dark:border-pink-800/40' },
   URL: { icon: Globe, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/30' },
   TEXT: { icon: FileText, color: 'text-gray-600 dark:text-gray-400', bg: 'bg-gray-100 dark:bg-gray-800' },
   EMAIL: { icon: Mail, color: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-50 dark:bg-violet-900/30' },
@@ -32,7 +38,7 @@ const typeConfig: Record<
   SMS: { icon: MessageSquare, color: 'text-teal-600 dark:text-teal-400', bg: 'bg-teal-50 dark:bg-teal-900/30' },
   WIFI: { icon: Wifi, color: 'text-sky-600 dark:text-sky-400', bg: 'bg-sky-50 dark:bg-sky-900/30' },
   VCARD: { icon: User, color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-50 dark:bg-indigo-900/30' },
-  GEO: { icon: MapPin, color: 'text-red-600 dark:text-red-400', bg: 'bg-red-50 dark:bg-red-900/30' },
+  GEO: { icon: MapPin, color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-50 dark:bg-rose-900/30' },
   CALENDAR: { icon: Calendar, color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-50 dark:bg-orange-900/30' },
   CRYPTO: { icon: Bitcoin, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-900/30' },
   UNKNOWN: { icon: HelpCircle, color: 'text-gray-500 dark:text-gray-400', bg: 'bg-gray-100 dark:bg-gray-800' },
@@ -44,7 +50,7 @@ export const ContentTypeBadge: React.FC<ContentTypeBadgeProps> = ({ type, classN
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium',
+        'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold shadow-xs',
         config.color,
         config.bg,
         className

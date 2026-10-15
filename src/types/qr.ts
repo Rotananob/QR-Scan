@@ -9,6 +9,9 @@ export type QRContentType =
   | 'GEO'
   | 'CALENDAR'
   | 'CRYPTO'
+  | 'KHQR'
+  | 'BARCODE'
+  | 'SOCIAL'
   | 'UNKNOWN';
 
 export interface QRResult {
@@ -17,6 +20,7 @@ export interface QRResult {
   title: string;
   domain?: string;
   isSecure?: boolean;
+  formatName?: string;
   parsed?: ParsedQRData;
 }
 
@@ -28,7 +32,10 @@ export type ParsedQRData =
   | WifiData
   | VCardData
   | GeoData
-  | TextData;
+  | TextData
+  | KHQRData
+  | BarcodeData
+  | SocialData;
 
 export interface URLData {
   kind: 'url';
@@ -71,6 +78,9 @@ export interface VCardData {
   phone?: string;
   email?: string;
   organization?: string;
+  title?: string;
+  website?: string;
+  address?: string;
 }
 
 export interface GeoData {
@@ -85,12 +95,45 @@ export interface TextData {
   text: string;
 }
 
+export interface KHQRData {
+  kind: 'khqr';
+  merchantName: string;
+  bakongAccountId?: string;
+  amount?: string;
+  currency: 'USD' | 'KHR' | string;
+  currencySymbol: string;
+  merchantCity?: string;
+  billNumber?: string;
+  storeLabel?: string;
+  terminalLabel?: string;
+  isDynamic: boolean;
+  raw: string;
+}
+
+export interface BarcodeData {
+  kind: 'barcode';
+  formatName: string;
+  code: string;
+  isIsbn: boolean;
+  searchUrl: string;
+  bookSearchUrl?: string;
+}
+
+export interface SocialData {
+  kind: 'social';
+  platform: 'telegram' | 'whatsapp' | 'facebook' | 'tiktok' | 'youtube' | 'instagram';
+  username?: string;
+  url: string;
+  appDeepLink?: string;
+}
+
 export interface ScanHistoryItem {
   id: string;
   content: string;
   type: QRContentType;
   title: string;
   domain?: string;
+  formatName?: string;
   createdAt: number;
   favorite: boolean;
 }
@@ -102,6 +145,8 @@ export interface AppSettings {
   sound: boolean;
   preventDuplicates: boolean;
   autoStartScanner: boolean;
+  highResolution: boolean;
+  scanMode: 'all' | 'qr' | 'barcode' | 'khqr';
 }
 
 export type ScannerStatus =

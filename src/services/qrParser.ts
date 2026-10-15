@@ -9,6 +9,9 @@ import type {
   VCardData,
   GeoData,
   TextData,
+  KHQRData,
+  BarcodeData,
+  SocialData,
 } from '../types/qr';
 
 const DANGEROUS_PROTOCOLS = new Set([
@@ -93,10 +96,33 @@ function parseVCard(raw: string): VCardData | null {
   };
   return {
     kind: 'vcard',
-    name: get('FN') ?? get('N'),
+    name: get('FN') ?? get('N')?.replace(/;/g, ' ').trim(),
     phone: get('TEL'),
     email: get('EMAIL'),
     organization: get('ORG'),
+    title: get('TITLE'),
+    website: get('URL'),
+    address: get('ADR')?.replace(/;/g, ' ').trim(),
+  };
+}
+
+function parseMeCard(raw: string): VCardData | null {
+  if (!raw.toUpperCase().startsWith('MECARD:')) return null;
+  const content = raw.slice(7);
+  const extract = (prefix: string): string | undefined => {
+    const regex = new RegExp(`${prefix}:([^;]*);`, 'i');
+    const m = content.match(regex);
+    return m ? m[1].trim() : undefined;
+  };
+  const name = extract('N')?.replace(/,/g, ' ');
+  return {
+    kind: 'vcard',
+    name: name || undefined,
+    phone: extract('TEL'),
+    email: extract('EMAIL'),
+    organization: extract('ORG'),
+    address: extract('ADR'),
+    website: extract('URL'),
   };
 }
 
@@ -109,32 +135,260 @@ function parseGeo(raw: string): GeoData | null {
   return { kind: 'geo', lat, lng, query };
 }
 
-export function parseQRContent(raw: string): QRResult {
+// EMVCo Tag-Length-Value parser for KHQR (Bakong / National Standard of Cambodia)
+function parseEMVCo(raw: string): Map<string, string> {
+  const tags = new Map<string, string>();
+  let i = 0;
+  while (i + 4 <= raw.length) {
+    const tag = raw.substring(i, i + 2);
+    const len = parseInt(raw.substring(i + 2, i + 4), 10);
+    if (isNaN(len) || i + 4 + len > raw.length) break;
+    const val = raw.substring(i + 4, i + 4 + len);
+    tags.set(tag, val);
+    i += 4 + len;
+  }
+  return tags;
+}
+
+function parseKHQR(raw: string): KHQRData | null {
+  const trimmed = raw.trim();
+  
+  // Bakong deep links or web payment links
+  if (trimmed.includes('bakong.nbc.gov.kh') || trimmed.startsWith('bakong://')) {
+    return {
+      kind: 'khqr',
+      merchantName: 'Bakong Merchant',
+      currency: 'USD',
+      currencySymbol: '$',
+      isDynamic: false,
+      raw: trimmed,
+    };
+  }
+
+  // EMVCo payload format (starts with 000201 or 00020101)
+  if (!trimmed.startsWith('000201')) return null;
+
+  const tags = parseEMVCo(trimmed);
+  // Check if it's Cambodian KHQR (tag 58 is 'KH' or merchant tags contain bakong/nbc)
+  const country = tags.get('58')?.toUpperCase();
+  const merchantTag29 = tags.get('29');
+  const merchantTag30 = tags.get('30');
+  const isKhqr = country === 'KH' || 
+                 (merchantTag29 && /bakong|nbc|abaa|aclb|wing/i.test(merchantTag29)) ||
+                 (merchantTag30 && /bakong|nbc|abaa|aclb|wing/i.test(merchantTag30)) ||
+                 trimmed.toLowerCase().includes('bakong');
+
+  if (!isKhqr) return null;
+
+  const isDynamic = tags.get('01') === '12';
+  const currencyCode = tags.get('53') ?? '840'; // 840 is USD, 116 is KHR
+  const isKhr = currencyCode === '116';
+  const currency = isKhr ? 'KHR' : 'USD';
+  const currencySymbol = isKhr ? '៛' : '$';
+  const amount = tags.get('54');
+  const merchantName = tags.get('59') || 'KHQR Merchant';
+  const merchantCity = tags.get('60');
+
+  // Extract Bakong account ID from Tag 29 or 30
+  let bakongAccountId: string | undefined;
+  const merchantTag = merchantTag29 || merchantTag30;
+  if (merchantTag) {
+    const subTags = parseEMVCo(merchantTag);
+    bakongAccountId = subTags.get('01') || subTags.get('00');
+  }
+
+  // Extract Additional Info from Tag 62
+  let billNumber: string | undefined;
+  let storeLabel: string | undefined;
+  let terminalLabel: string | undefined;
+  const tag62 = tags.get('62');
+  if (tag62) {
+    const sub = parseEMVCo(tag62);
+    billNumber = sub.get('01');
+    storeLabel = sub.get('03');
+    terminalLabel = sub.get('07');
+  }
+
+  return {
+    kind: 'khqr',
+    merchantName,
+    bakongAccountId,
+    amount,
+    currency,
+    currencySymbol,
+    merchantCity,
+    billNumber,
+    storeLabel,
+    terminalLabel,
+    isDynamic,
+    raw: trimmed,
+  };
+}
+
+// Social Media Link Detection
+function parseSocial(urlStr: string): SocialData | null {
+  try {
+    const url = new URL(urlStr);
+    const host = url.hostname.toLowerCase().replace(/^www\./, '');
+    const pathname = url.pathname;
+
+    // Telegram
+    if (host === 't.me' || host === 'telegram.me') {
+      const username = pathname.replace(/^\//, '').split('/')[0];
+      return {
+        kind: 'social',
+        platform: 'telegram',
+        username: username ? `@${username}` : undefined,
+        url: urlStr,
+        appDeepLink: username ? `tg://resolve?domain=${username}` : undefined,
+      };
+    }
+
+    // WhatsApp
+    if (host === 'wa.me' || (host === 'api.whatsapp.com' && pathname.includes('send'))) {
+      const phone = host === 'wa.me' ? pathname.replace(/^\//, '') : url.searchParams.get('phone') ?? '';
+      return {
+        kind: 'social',
+        platform: 'whatsapp',
+        username: phone ? `+${phone}` : undefined,
+        url: urlStr,
+        appDeepLink: phone ? `whatsapp://send?phone=${phone}` : undefined,
+      };
+    }
+
+    // Facebook
+    if (host === 'facebook.com' || host === 'fb.com' || host === 'fb.me' || host === 'm.facebook.com') {
+      return {
+        kind: 'social',
+        platform: 'facebook',
+        url: urlStr,
+        appDeepLink: `fb://facewebmodal/f?href=${encodeURIComponent(urlStr)}`,
+      };
+    }
+
+    // TikTok
+    if (host === 'tiktok.com' || host === 'vm.tiktok.com') {
+      const username = pathname.startsWith('/@') ? pathname.slice(2).split('/')[0] : undefined;
+      return {
+        kind: 'social',
+        platform: 'tiktok',
+        username: username ? `@${username}` : undefined,
+        url: urlStr,
+      };
+    }
+
+    // YouTube
+    if (host === 'youtube.com' || host === 'youtu.be' || host === 'm.youtube.com') {
+      return {
+        kind: 'social',
+        platform: 'youtube',
+        url: urlStr,
+      };
+    }
+
+    // Instagram
+    if (host === 'instagram.com') {
+      const username = pathname.replace(/^\//, '').split('/')[0];
+      return {
+        kind: 'social',
+        platform: 'instagram',
+        username: username && !['p', 'reel', 'stories', 'explore'].includes(username) ? `@${username}` : undefined,
+        url: urlStr,
+      };
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// Barcode detection (UPC, EAN, ISBN, Code 128, etc.)
+function parseBarcode(raw: string, formatName?: string): BarcodeData | null {
   const trimmed = raw.trim();
 
-  // Email
+  // Explicit barcode format from scanner
+  const isExplicitBarcode =
+    formatName &&
+    ['EAN_13', 'UPC_A', 'UPC_E', 'CODE_128', 'CODE_39', 'CODE_93', 'CODABAR', 'ITF', 'EAN_8', 'PDF_417'].includes(
+      formatName
+    );
+
+  // Or numeric pattern matching standard barcode lengths (8, 12, 13, 14 digits)
+  const isNumericBarcode = /^\d{8}$|^\d{12,14}$/.test(trimmed);
+
+  if (!isExplicitBarcode && !isNumericBarcode) return null;
+
+  const normalizedFormat = formatName || (trimmed.length === 13 ? 'EAN_13' : trimmed.length === 12 ? 'UPC_A' : 'BARCODE');
+  
+  // Check if ISBN book barcode
+  const isIsbn = (trimmed.length === 13 && (trimmed.startsWith('978') || trimmed.startsWith('979'))) || (trimmed.length === 10 && /^\d{9}[\dX]$/i.test(trimmed));
+
+  return {
+    kind: 'barcode',
+    formatName: normalizedFormat.replace(/_/g, '-'),
+    code: trimmed,
+    isIsbn,
+    searchUrl: `https://www.google.com/search?q=${encodeURIComponent(trimmed)}`,
+    bookSearchUrl: isIsbn ? `https://www.google.com/search?tbm=bks&q=isbn:${encodeURIComponent(trimmed)}` : undefined,
+  };
+}
+
+export function parseQRContent(raw: string, formatName?: string): QRResult {
+  const trimmed = raw.trim();
+
+  // 1. Cambodian Bakong KHQR
+  const khqrData = parseKHQR(trimmed);
+  if (khqrData) {
+    const formattedAmount = khqrData.amount
+      ? `${khqrData.currencySymbol}${Number(khqrData.amount).toLocaleString()} ${khqrData.currency}`
+      : undefined;
+    return {
+      raw: trimmed,
+      type: 'KHQR',
+      title: khqrData.merchantName + (formattedAmount ? ` (${formattedAmount})` : ''),
+      formatName: formatName || 'KHQR',
+      parsed: khqrData,
+    };
+  }
+
+  // 2. Barcode (EAN, UPC, ISBN, Code 128)
+  const barcodeData = parseBarcode(trimmed, formatName);
+  if (barcodeData) {
+    return {
+      raw: trimmed,
+      type: 'BARCODE',
+      title: barcodeData.isIsbn ? `ISBN ${barcodeData.code}` : `${barcodeData.formatName} ${barcodeData.code}`,
+      formatName: barcodeData.formatName,
+      parsed: barcodeData,
+    };
+  }
+
+  // 3. Email
   if (trimmed.toLowerCase().startsWith('mailto:')) {
     const parsed = parseEmail(trimmed) as EmailData;
     return {
       raw: trimmed,
       type: 'EMAIL',
       title: parsed?.address ?? trimmed,
+      formatName: formatName || 'QR_CODE',
       parsed,
     };
   }
 
-  // Phone
+  // 4. Phone
   if (trimmed.toLowerCase().startsWith('tel:')) {
     const parsed = parsePhone(trimmed) as PhoneData;
     return {
       raw: trimmed,
       type: 'PHONE',
       title: parsed?.number ?? trimmed,
+      formatName: formatName || 'QR_CODE',
       parsed,
     };
   }
 
-  // SMS
+  // 5. SMS
   if (
     trimmed.toLowerCase().startsWith('sms:') ||
     trimmed.toLowerCase().startsWith('smsto:')
@@ -144,64 +398,102 @@ export function parseQRContent(raw: string): QRResult {
       raw: trimmed,
       type: 'SMS',
       title: parsed?.number ?? trimmed,
+      formatName: formatName || 'QR_CODE',
       parsed,
     };
   }
 
-  // WiFi
+  // 6. WiFi
   if (trimmed.toUpperCase().startsWith('WIFI:')) {
     const parsed = parseWifi(trimmed) as WifiData;
     return {
       raw: trimmed,
       type: 'WIFI',
-      title: parsed?.ssid ?? 'Wi-Fi Network',
+      title: parsed?.ssid ? `Wi-Fi: ${parsed.ssid}` : 'Wi-Fi Network',
+      formatName: formatName || 'QR_CODE',
       parsed,
     };
   }
 
-  // vCard
+  // 7. vCard / MeCard
   if (trimmed.toUpperCase().includes('BEGIN:VCARD')) {
     const parsed = parseVCard(trimmed) as VCardData;
     return {
       raw: trimmed,
       type: 'VCARD',
-      title: parsed?.name ?? 'Contact',
+      title: parsed?.name ?? 'Contact Card',
+      formatName: formatName || 'QR_CODE',
       parsed,
     };
   }
 
-  // Geo
+  if (trimmed.toUpperCase().startsWith('MECARD:')) {
+    const parsed = parseMeCard(trimmed) as VCardData;
+    return {
+      raw: trimmed,
+      type: 'VCARD',
+      title: parsed?.name ?? 'Contact Card',
+      formatName: formatName || 'QR_CODE',
+      parsed,
+    };
+  }
+
+  // 8. Geo
   if (trimmed.toLowerCase().startsWith('geo:')) {
     const parsed = parseGeo(trimmed) as GeoData;
     return {
       raw: trimmed,
       type: 'GEO',
       title: parsed ? `${parsed.lat.toFixed(4)}, ${parsed.lng.toFixed(4)}` : trimmed,
+      formatName: formatName || 'QR_CODE',
       parsed,
     };
   }
 
-  // Calendar
+  // 9. Calendar
   if (trimmed.toUpperCase().includes('BEGIN:VCALENDAR') || trimmed.toUpperCase().includes('BEGIN:VEVENT')) {
     return {
       raw: trimmed,
       type: 'CALENDAR',
       title: 'Calendar Event',
+      formatName: formatName || 'QR_CODE',
       parsed: { kind: 'text', text: trimmed } as TextData,
     };
   }
 
-  // Crypto (Bitcoin, Ethereum, etc.)
-  if (/^(bitcoin|ethereum|litecoin):/i.test(trimmed)) {
+  // 10. Crypto (Bitcoin, Ethereum, etc.)
+  if (/^(bitcoin|ethereum|litecoin|solana|binance):/i.test(trimmed)) {
     return {
       raw: trimmed,
       type: 'CRYPTO',
-      title: 'Cryptocurrency Address',
+      title: 'Crypto Address',
+      formatName: formatName || 'QR_CODE',
       parsed: { kind: 'text', text: trimmed } as TextData,
     };
   }
 
-  // URL
+  // 11. Social Media Links
+  const socialData = parseSocial(trimmed);
+  if (socialData) {
+    const platformNames: Record<string, string> = {
+      telegram: 'Telegram',
+      whatsapp: 'WhatsApp',
+      facebook: 'Facebook',
+      tiktok: 'TikTok',
+      youtube: 'YouTube',
+      instagram: 'Instagram',
+    };
+    const platform = platformNames[socialData.platform] || 'Social Media';
+    return {
+      raw: trimmed,
+      type: 'SOCIAL',
+      title: socialData.username ? `${platform}: ${socialData.username}` : `${platform} Link`,
+      formatName: formatName || 'QR_CODE',
+      parsed: socialData,
+    };
+  }
+
+  // 12. Standard URL
   const urlData = parseURL(trimmed);
   if (urlData) {
     return {
@@ -210,22 +502,27 @@ export function parseQRContent(raw: string): QRResult {
       title: urlData.hostname,
       domain: urlData.hostname,
       isSecure: urlData.isSecure,
+      formatName: formatName || 'QR_CODE',
       parsed: urlData,
     };
   }
 
-  // Plain text
+  // 13. Plain text
   const textData: TextData = { kind: 'text', text: trimmed };
   return {
     raw: trimmed,
     type: 'TEXT',
     title: trimmed.length > 50 ? trimmed.slice(0, 50) + '...' : trimmed,
+    formatName: formatName || 'QR_CODE',
     parsed: textData,
   };
 }
 
 export function getContentTypeLabel(type: QRContentType): string {
   const labels: Record<QRContentType, string> = {
+    KHQR: 'Bakong KHQR',
+    BARCODE: 'Barcode',
+    SOCIAL: 'Social Media',
     URL: 'Website',
     TEXT: 'Text',
     EMAIL: 'Email',
@@ -243,6 +540,9 @@ export function getContentTypeLabel(type: QRContentType): string {
 
 export function getContentTypeIcon(type: QRContentType): string {
   const icons: Record<QRContentType, string> = {
+    KHQR: '🇰🇭',
+    BARCODE: '🏷️',
+    SOCIAL: '💬',
     URL: '🌐',
     TEXT: '📝',
     EMAIL: '✉️',

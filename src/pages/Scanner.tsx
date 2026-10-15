@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useContext } from 'react';
-import { Upload, Keyboard } from 'lucide-react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Upload, Keyboard, Sparkles } from 'lucide-react';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { useTranslation } from 'react-i18next';
 import { QRScanner } from '../components/scanner/QRScanner';
 import { ScanResult } from '../components/results/ScanResult';
@@ -8,12 +8,33 @@ import { Button } from '../components/common/Button';
 import { Modal } from '../components/common/Modal';
 import { parseQRContent } from '../services/qrParser';
 import { vibrate } from '../services/share';
+import { sound } from '../services/sound';
 import { AppContext } from '../context/AppContext';
 import type { QRResult } from '../types/qr';
 
+const ALL_FORMATS = [
+  Html5QrcodeSupportedFormats.QR_CODE,
+  Html5QrcodeSupportedFormats.AZTEC,
+  Html5QrcodeSupportedFormats.CODABAR,
+  Html5QrcodeSupportedFormats.CODE_39,
+  Html5QrcodeSupportedFormats.CODE_93,
+  Html5QrcodeSupportedFormats.CODE_128,
+  Html5QrcodeSupportedFormats.DATA_MATRIX,
+  Html5QrcodeSupportedFormats.MAXICODE,
+  Html5QrcodeSupportedFormats.ITF,
+  Html5QrcodeSupportedFormats.EAN_13,
+  Html5QrcodeSupportedFormats.EAN_8,
+  Html5QrcodeSupportedFormats.PDF_417,
+  Html5QrcodeSupportedFormats.RSS_14,
+  Html5QrcodeSupportedFormats.RSS_EXPANDED,
+  Html5QrcodeSupportedFormats.UPC_A,
+  Html5QrcodeSupportedFormats.UPC_E,
+  Html5QrcodeSupportedFormats.UPC_EAN_EXTENSION,
+];
+
 export const ScannerPage: React.FC = () => {
   const { t } = useTranslation();
-  const { settings, addToHistory, showToast } = useContext(AppContext);
+  const { settings, updateSettings, addToHistory, showToast } = useContext(AppContext);
   const [result, setResult] = useState<QRResult | null>(null);
   const [scannerActive, setScannerActive] = useState(true);
   const [manualOpen, setManualOpen] = useState(false);
@@ -25,11 +46,14 @@ export const ScannerPage: React.FC = () => {
   const savedItemIdRef = useRef<string | null>(null);
 
   const handleDetected = useCallback(
-    (raw: string) => {
-      const parsed = parseQRContent(raw);
+    (raw: string, formatName?: string) => {
+      const parsed = parseQRContent(raw, formatName);
       setResult(parsed);
       setScannerActive(false);
-      if (settings.vibrate) vibrate(50);
+
+      if (settings.sound) sound.playScanSuccess();
+      if (settings.vibrate) vibrate(60);
+
       if (settings.autoSave) {
         const id = crypto.randomUUID();
         savedItemIdRef.current = id;
@@ -39,6 +63,7 @@ export const ScannerPage: React.FC = () => {
           type: parsed.type,
           title: parsed.title,
           domain: parsed.domain,
+          formatName: parsed.formatName,
           createdAt: Date.now(),
           favorite: false,
         });
@@ -72,6 +97,7 @@ export const ScannerPage: React.FC = () => {
       type: result.type,
       title: result.title,
       domain: result.domain,
+      formatName: result.formatName,
       createdAt: Date.now(),
       favorite: false,
     });
@@ -94,11 +120,9 @@ export const ScannerPage: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     setImageLoading(true);
-    
-    // Create preview URL
+
     const previewUrl = URL.createObjectURL(file);
-    
-    const tempId = 'qr-image-decoder';
+    const tempId = 'qr-image-decoder-container';
     let div = document.getElementById(tempId);
     if (!div) {
       div = document.createElement('div');
@@ -106,12 +130,21 @@ export const ScannerPage: React.FC = () => {
       div.style.display = 'none';
       document.body.appendChild(div);
     }
+
     try {
-      const scanner = new Html5Qrcode(tempId, { verbose: false });
-      const resultText = await scanner.scanFile(file, false);
+      // Decode image supporting all formats (QR, Barcodes, Aztec, Data Matrix, etc.)
+      const scanner = new Html5Qrcode(tempId, {
+        verbose: false,
+        formatsToSupport: ALL_FORMATS,
+        experimentalFeatures: {
+          useBarCodeDetectorIfSupported: true,
+        },
+      });
+
+      const scanRes = await scanner.scanFileV2(file, false);
       scanner.clear();
       setPreviewImage(previewUrl);
-      handleDetected(resultText);
+      handleDetected(scanRes.decodedText, scanRes.result?.format?.formatName);
     } catch {
       URL.revokeObjectURL(previewUrl);
       showToast(t('scanner.noQrFound'), 'error');
@@ -123,9 +156,13 @@ export const ScannerPage: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-full">
-      {/* Hero */}
+      {/* Title Header with Pro Badge */}
       <div className="px-4 pt-4 pb-2 text-center">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 border border-indigo-500/20 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 mb-1.5 shadow-sm">
+          <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+          <span>{t('scanner.proBadge', 'Ultra HD AI Scanner • Scan All Formats')}</span>
+        </div>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">
           {t('scanner.title')}
         </h2>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
@@ -142,27 +179,29 @@ export const ScannerPage: React.FC = () => {
               autoStart={settings.autoStartScanner}
               preventDuplicates={settings.preventDuplicates}
               active={scannerActive}
+              soundEnabled={settings.sound}
+              onToggleSound={() => updateSettings({ sound: !settings.sound })}
             />
 
-            {/* Secondary actions */}
+            {/* Quick Actions (Upload Image / Manual Input) */}
             <div className="grid grid-cols-2 gap-3">
               <Button
                 variant="outline"
                 onClick={() => fileInputRef.current?.click()}
                 loading={imageLoading}
-                className="gap-2"
+                className="gap-2 shadow-sm hover:shadow transition-all"
                 id="upload-image-btn"
               >
-                <Upload className="w-4 h-4" />
+                <Upload className="w-4 h-4 text-indigo-500" />
                 {t('scanner.uploadImage')}
               </Button>
               <Button
                 variant="outline"
                 onClick={() => setManualOpen(true)}
-                className="gap-2"
+                className="gap-2 shadow-sm hover:shadow transition-all"
                 id="manual-input-btn"
               >
-                <Keyboard className="w-4 h-4" />
+                <Keyboard className="w-4 h-4 text-slate-500" />
                 {t('scanner.manualInput')}
               </Button>
             </div>
@@ -181,18 +220,18 @@ export const ScannerPage: React.FC = () => {
         )}
       </div>
 
-      {/* Hidden file input */}
+      {/* Hidden file input for gallery upload */}
       <input
         ref={fileInputRef}
         type="file"
         accept="image/*"
         className="sr-only"
         onChange={handleImageUpload}
-        aria-label="Upload QR code image"
+        aria-label="Upload QR code or Barcode image"
         id="qr-image-upload"
       />
 
-      {/* Manual input modal */}
+      {/* Manual Input Modal */}
       <Modal
         open={manualOpen}
         onClose={() => setManualOpen(false)}
@@ -205,9 +244,9 @@ export const ScannerPage: React.FC = () => {
           <textarea
             value={manualInput}
             onChange={(e) => setManualInput(e.target.value)}
-            placeholder="https://example.com…"
+            placeholder="https://example.com, WIFI:..., 000201..., barcode..."
             rows={4}
-            className="w-full px-3 py-2.5 text-sm bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+            className="w-full px-3 py-2.5 text-sm bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none font-mono"
             autoFocus
             aria-label="QR code content input"
             onKeyDown={(e) => {

@@ -19,7 +19,7 @@ export const FavoritesPage: React.FC = () => {
   const favorites = history.filter((item) => item.favorite);
 
   const handleSelect = (item: ScanHistoryItem) => {
-    setSelectedItem(parseQRContent(item.content));
+    setSelectedItem(parseQRContent(item.content, item.formatName));
   };
 
   return (
