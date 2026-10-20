@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   CheckCircle,
   Shield,
@@ -17,6 +17,8 @@ import {
 import { useTranslation } from 'react-i18next';
 import { ContentTypeBadge } from './ContentTypeBadge';
 import { ResultActions } from './ResultActions';
+import { detectKHQRBank } from '../../services/bankDeepLink';
+import { generateQRDataUrl } from '../../services/qrImage';
 import { copyToClipboard } from '../../services/share';
 import type {
   QRResult,
@@ -52,6 +54,7 @@ export const ScanResult: React.FC<ScanResultProps> = ({
   const { t } = useTranslation();
   const [showWifiPassword, setShowWifiPassword] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
 
   const copyField = async (text: string, fieldName: string) => {
     await copyToClipboard(text);
@@ -66,6 +69,14 @@ export const ScanResult: React.FC<ScanResultProps> = ({
   const barcodeData = result.parsed?.kind === 'barcode' ? (result.parsed as BarcodeData) : null;
   const vcardData = result.parsed?.kind === 'vcard' ? (result.parsed as VCardData) : null;
   const socialData = result.parsed?.kind === 'social' ? (result.parsed as SocialData) : null;
+
+  const detectedBank = khqrData ? detectKHQRBank(khqrData.bakongAccountId, khqrData.acquiringBank) : null;
+
+  useEffect(() => {
+    if (result.type === 'KHQR') {
+      generateQRDataUrl(result.raw).then(setQrCodeDataUrl).catch(() => {});
+    }
+  }, [result.raw, result.type]);
 
   return (
     <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-2xl shadow-[0_12px_40px_rgb(0,0,0,0.12)] border border-slate-200/70 dark:border-white/10 overflow-hidden animate-slide-up">
@@ -97,18 +108,28 @@ export const ScanResult: React.FC<ScanResultProps> = ({
       <div className="p-4 space-y-3.5">
         {/* 1. Cambodian Bakong KHQR Display Card */}
         {khqrData && (
-          <div className="rounded-xl overflow-hidden border border-red-200 dark:border-red-900/50 bg-gradient-to-br from-red-500/5 via-rose-500/5 to-amber-500/5 p-4 space-y-3">
+          <div className="rounded-xl overflow-hidden border border-red-200 dark:border-red-900/50 bg-gradient-to-br from-red-500/5 via-rose-500/5 to-amber-500/5 p-4 space-y-3.5">
+            {/* Header with Beneficiary Bank */}
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-red-600 text-white flex items-center justify-center font-bold text-xs shadow-sm">
-                  KH
-                </div>
+              <div className="flex items-center gap-2.5">
+                {detectedBank ? (
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shadow-sm shrink-0"
+                    style={{ backgroundColor: detectedBank.color, color: detectedBank.textColor }}
+                  >
+                    {detectedBank.id.toUpperCase().slice(0, 3)}
+                  </div>
+                ) : (
+                  <div className="w-9 h-9 rounded-xl bg-red-600 text-white flex items-center justify-center font-bold text-xs shadow-sm shrink-0">
+                    KH
+                  </div>
+                )}
                 <div>
                   <h4 className="text-sm font-bold text-slate-900 dark:text-white leading-tight">
                     {khqrData.merchantName}
                   </h4>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    Bakong KHQR Payment
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                    {detectedBank ? detectedBank.name : 'Bakong KHQR Payment'}
                   </p>
                 </div>
               </div>
@@ -116,6 +137,20 @@ export const ScanResult: React.FC<ScanResultProps> = ({
                 {khqrData.isDynamic ? 'Dynamic QR' : 'Static QR'}
               </span>
             </div>
+
+            {/* Optional QR Code Preview for scanning/saving */}
+            {qrCodeDataUrl && (
+              <div className="flex flex-col items-center justify-center p-3 bg-white dark:bg-slate-950/80 rounded-xl border border-red-100 dark:border-red-900/30">
+                <img
+                  src={qrCodeDataUrl}
+                  alt="KHQR Code Preview"
+                  className="w-40 h-40 object-contain rounded-lg shadow-xs"
+                />
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1.5 font-medium">
+                  កូដ KHQR ផ្លូវការ • អាចស្កេន ឬរក្សាទុកបាន
+                </p>
+              </div>
+            )}
 
             {/* Amount Banner */}
             {khqrData.amount && (

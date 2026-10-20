@@ -99,6 +99,9 @@ export interface KHQRData {
   kind: 'khqr';
   merchantName: string;
   bakongAccountId?: string;
+  acquiringBank?: string;
+  bankId?: string;
+  bankName?: string;
   amount?: string;
   currency: 'USD' | 'KHR' | string;
   currencySymbol: string;

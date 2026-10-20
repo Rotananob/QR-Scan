@@ -120,13 +120,13 @@
   "about": {
     "title": "About & Privacy",
     "developer": "Developer",
-    "developerDesc": "This application is developed by Rotana NOB, a Cambodian web developer and creator of IT educational content (Rotana E-Learning).",
+    "developerDesc": "Created by Rotana NOB (Rotana E-Learning) as a helpful tool to share with the community.",
     "purpose": "Purpose",
-    "purposeDesc": "To provide a lightning-fast, ultra-clear, secure, ad-free, and easy-to-use QR & Barcode scanner for everyone.",
+    "purposeDesc": "Built to make scanning QR codes and barcodes fast, clear, easy to use, and privacy-focused on your device.",
     "privacy": "Privacy Policy",
-    "privacyDesc": "Your privacy is our top priority. This app runs entirely locally on your device. All scans and history are stored locally. No data is ever sent to any external servers.",
+    "privacyDesc": "This app runs entirely locally on your device (Offline). Your scans and history stay on your phone, with no data sent to external servers.",
     "contact": "Contact",
-    "github": "Visit my GitHub"
+    "github": "View My Other Projects"
   },
   "safeLink": {
     "dangerousTitle": "Dangerous Link Blocked",

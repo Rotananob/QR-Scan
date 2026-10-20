@@ -13,6 +13,7 @@ import type {
   BarcodeData,
   SocialData,
 } from '../types/qr';
+import { detectKHQRBank } from './bankDeepLink';
 
 const DANGEROUS_PROTOCOLS = new Set([
   'javascript:',
@@ -191,11 +192,15 @@ function parseKHQR(raw: string): KHQRData | null {
 
   // Extract Bakong account ID from Tag 29 or 30
   let bakongAccountId: string | undefined;
+  let acquiringBank: string | undefined;
   const merchantTag = merchantTag29 || merchantTag30;
   if (merchantTag) {
     const subTags = parseEMVCo(merchantTag);
-    bakongAccountId = subTags.get('01') || subTags.get('00');
+    bakongAccountId = subTags.get('00') || subTags.get('01');
+    acquiringBank = subTags.get('02');
   }
+
+  const detectedBank = detectKHQRBank(bakongAccountId, acquiringBank);
 
   // Extract Additional Info from Tag 62
   let billNumber: string | undefined;
@@ -213,6 +218,9 @@ function parseKHQR(raw: string): KHQRData | null {
     kind: 'khqr',
     merchantName,
     bakongAccountId,
+    acquiringBank,
+    bankId: detectedBank.id,
+    bankName: detectedBank.name,
     amount,
     currency,
     currencySymbol,
@@ -343,11 +351,12 @@ export function parseQRContent(raw: string, formatName?: string): QRResult {
     const formattedAmount = khqrData.amount
       ? `${khqrData.currencySymbol}${Number(khqrData.amount).toLocaleString()} ${khqrData.currency}`
       : undefined;
+    const bankSuffix = khqrData.bankName ? ` • ${khqrData.bankName}` : '';
     return {
       raw: trimmed,
       type: 'KHQR',
-      title: khqrData.merchantName + (formattedAmount ? ` (${formattedAmount})` : ''),
-      formatName: formatName || 'KHQR',
+      title: `${khqrData.merchantName}${formattedAmount ? ` (${formattedAmount})` : ''}${bankSuffix}`,
+      formatName: formatName || `KHQR (${khqrData.bankName || 'Bakong'})`,
       parsed: khqrData,
     };
   }

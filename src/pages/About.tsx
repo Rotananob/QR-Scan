@@ -71,7 +71,7 @@ export const AboutPage: React.FC = () => {
             className="flex items-center justify-between w-full p-4 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-2xl border border-slate-200/50 dark:border-white/5 transition-all group"
           >
             <span className="font-medium text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-              {t('about.github')} (Rotana NOB)
+              {t('about.github')}
             </span>
             <ExternalLink className="w-5 h-5 text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" />
           </a>

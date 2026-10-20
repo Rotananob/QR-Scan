@@ -16,10 +16,15 @@ import {
   BookOpen,
   UserPlus,
   Landmark,
+  ArrowUpRight,
+  Download,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../common/Button';
 import { SafeLinkModal } from '../common/SafeLinkModal';
+import { KHQRBankModal } from './KHQRBankModal';
+import { detectKHQRBank, launchBankApp } from '../../services/bankDeepLink';
+import { downloadQRImage } from '../../services/qrImage';
 import { copyToClipboard, shareContent, canShare } from '../../services/share';
 import type {
   QRResult,
@@ -52,6 +57,8 @@ export const ResultActions: React.FC<ResultActionsProps> = ({
 }) => {
   const { t } = useTranslation();
   const [safeLinkOpen, setSafeLinkOpen] = useState(false);
+  const [bankModalOpen, setBankModalOpen] = useState(false);
+  const [downloadingQR, setDownloadingQR] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -61,6 +68,14 @@ export const ResultActions: React.FC<ResultActionsProps> = ({
       setTimeout(() => setCopied(false), 2000);
       onCopy?.();
     }
+  };
+
+  const handleDownloadQR = async () => {
+    setDownloadingQR(true);
+    const khqr = result.parsed as KHQRData | undefined;
+    const cleanMerchant = (khqr?.merchantName || 'payment').replace(/[^a-zA-Z0-9]/g, '_');
+    await downloadQRImage(result.raw, `KHQR_${cleanMerchant}.png`);
+    setDownloadingQR(false);
   };
 
   const handleShare = async () => {
@@ -97,33 +112,53 @@ export const ResultActions: React.FC<ResultActionsProps> = ({
     switch (result.type) {
       case 'KHQR': {
         const khqr = result.parsed as KHQRData;
+        const targetBank = detectKHQRBank(khqr?.bakongAccountId, khqr?.acquiringBank);
         return (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2.5">
+            {/* Primary Action Button: Open Beneficiary Bank App directly */}
             <Button
-              onClick={() => {
-                // Try opening Bakong App or standard payment handler
-                window.location.href = result.raw.startsWith('http')
-                  ? result.raw
-                  : `bakong://pay?qr=${encodeURIComponent(result.raw)}`;
-              }}
-              className="w-full gap-2 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white shadow-md shadow-red-500/20"
+              onClick={() => launchBankApp(targetBank, result.raw)}
+              className="w-full gap-2 text-white shadow-md font-bold tracking-wide transition-all h-12"
+              style={{ backgroundColor: targetBank.color }}
               size="lg"
             >
-              <Landmark className="w-4 h-4" />
-              {t('results.openBakong', 'បើកក្នុងកម្មវិធីបាគង (Bakong App)')}
+              <ArrowUpRight className="w-5 h-5" />
+              <span>បើកទូទាត់ក្នុង {targetBank.shortName}</span>
             </Button>
-            {khqr?.bakongAccountId && (
+
+            {/* Quick Bank Selector & QR Download */}
+            <div className="grid grid-cols-2 gap-2">
               <Button
                 variant="outline"
+                onClick={() => setBankModalOpen(true)}
+                className="gap-1.5 text-xs font-semibold h-10 border-red-200 dark:border-red-900/40 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20"
+              >
+                <Landmark className="w-3.5 h-3.5" />
+                <span>ធនាគារផ្សេងទៀត...</span>
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleDownloadQR}
+                loading={downloadingQR}
+                className="gap-1.5 text-xs font-semibold h-10 text-slate-700 dark:text-slate-200"
+              >
+                <Download className="w-3.5 h-3.5 text-indigo-500" />
+                <span>ទាញយក QR ទុកស្កេន</span>
+              </Button>
+            </div>
+
+            {khqr?.bakongAccountId && (
+              <Button
+                variant="ghost"
                 onClick={async () => {
                   await copyToClipboard(khqr.bakongAccountId!);
                   setCopied(true);
                   setTimeout(() => setCopied(false), 2000);
                 }}
-                className="w-full gap-2 text-xs"
+                className="w-full gap-1.5 text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 h-8"
               >
-                <Copy className="w-3.5 h-3.5" />
-                {t('results.copyAccountId', 'ចម្លងលេខគណនី')}: {khqr.bakongAccountId}
+                <Copy className="w-3 h-3" />
+                <span>ចម្លងលេខគណនី: {khqr.bakongAccountId}</span>
               </Button>
             )}
           </div>
@@ -363,6 +398,15 @@ export const ResultActions: React.FC<ResultActionsProps> = ({
         onConfirm={confirmOpenLink}
         onCancel={() => setSafeLinkOpen(false)}
       />
+
+      {result.type === 'KHQR' && result.parsed?.kind === 'khqr' && (
+        <KHQRBankModal
+          open={bankModalOpen}
+          onClose={() => setBankModalOpen(false)}
+          khqr={result.parsed as KHQRData}
+          onCopySuccess={() => onCopy?.()}
+        />
+      )}
     </>
   );
 };
