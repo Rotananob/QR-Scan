@@ -1,6 +1,8 @@
 {
   "nav": {
     "scan": "Scan",
+    "generate": "Generate",
+    "upgrade": "Lifetime VIP",
     "history": "History",
     "favorites": "Favorites",
     "settings": "Settings"

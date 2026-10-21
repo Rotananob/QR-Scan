@@ -40,13 +40,13 @@ export const ScannerOverlay: React.FC<ScannerOverlayProps> = ({
 
         {isKhqrMode && (
           <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-600/80 backdrop-blur-md text-[11px] font-semibold text-white shadow-lg border border-red-400/30">
-            <span>🇰🇭 KHQR Bakong</span>
+            <span>KHQR Bakong</span>
           </div>
         )}
 
         {isBarcodeMode && (
           <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-indigo-600/80 backdrop-blur-md text-[11px] font-semibold text-white shadow-lg border border-indigo-400/30">
-            <span>🏷️ 1D Barcode</span>
+            <span>1D Barcode</span>
           </div>
         )}
       </div>

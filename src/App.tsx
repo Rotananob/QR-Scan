@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AppProvider, AppContext } from './context/AppContext';
+import { AuthProvider } from './context/AuthContext';
 import { BottomNavigation } from './components/layout/BottomNavigation';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
@@ -13,6 +14,9 @@ const HistoryPage = lazy(() => import('./pages/History').then(m => ({ default: m
 const FavoritesPage = lazy(() => import('./pages/Favorites').then(m => ({ default: m.FavoritesPage })));
 const SettingsPage = lazy(() => import('./pages/Settings').then(m => ({ default: m.SettingsPage })));
 const AboutPage = lazy(() => import('./pages/About').then((m) => ({ default: m.AboutPage })));
+const UpgradePage = lazy(() => import('./pages/Upgrade').then(m => ({ default: m.UpgradePage })));
+const GeneratorPage = lazy(() => import('./pages/Generator').then(m => ({ default: m.GeneratorPage })));
+const AuthPage = lazy(() => import('./pages/Auth').then(m => ({ default: m.AuthPage })));
 
 const PageSkeleton = () => (
   <div className="p-4 space-y-4 animate-pulse">
@@ -44,6 +48,11 @@ const AppShell: React.FC = () => {
             <Suspense fallback={<PageSkeleton />}>
               <Routes>
                 <Route path="/" element={<ScannerPage />} />
+                <Route path="/generate" element={<GeneratorPage />} />
+                <Route path="/upgrade" element={<UpgradePage />} />
+                <Route path="/auth" element={<AuthPage />} />
+                <Route path="/login" element={<AuthPage />} />
+                <Route path="/register" element={<AuthPage />} />
                 <Route path="/history" element={<HistoryPage />} />
                 <Route path="/favorites" element={<FavoritesPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
@@ -66,9 +75,11 @@ const AppShell: React.FC = () => {
 export default function App() {
   return (
     <BrowserRouter>
-      <AppProvider>
-        <AppShell />
-      </AppProvider>
+      <AuthProvider>
+        <AppProvider>
+          <AppShell />
+        </AppProvider>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

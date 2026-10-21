@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if the caller is the owner
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    // User Profile Document
+    match /users/{userId} {
+      // Allow user to read and update their own profile
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId);
+      allow delete: if false; // Users cannot delete their profile directly
+
+      // User Scan History Subcollection
+      match /history/{historyId} {
+        // Strict privacy: Only the authenticated owner can access and manage their scan history
+        allow read, create, update, delete: if isOwner(userId);
+      }
+    }
+
+    // Default catch-all: Deny any unauthorized access to other documents
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

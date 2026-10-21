@@ -549,20 +549,20 @@ export function getContentTypeLabel(type: QRContentType): string {
 
 export function getContentTypeIcon(type: QRContentType): string {
   const icons: Record<QRContentType, string> = {
-    KHQR: '🇰🇭',
-    BARCODE: '🏷️',
-    SOCIAL: '💬',
-    URL: '🌐',
-    TEXT: '📝',
-    EMAIL: '✉️',
-    PHONE: '📞',
-    SMS: '💬',
-    WIFI: '📶',
-    VCARD: '👤',
-    GEO: '📍',
-    CALENDAR: '📅',
-    CRYPTO: '₿',
-    UNKNOWN: '❓',
+    KHQR: 'KHQR',
+    BARCODE: 'BAR',
+    SOCIAL: 'SOC',
+    URL: 'URL',
+    TEXT: 'TXT',
+    EMAIL: 'MAIL',
+    PHONE: 'TEL',
+    SMS: 'SMS',
+    WIFI: 'WIFI',
+    VCARD: 'CARD',
+    GEO: 'GEO',
+    CALENDAR: 'CAL',
+    CRYPTO: 'CRYPTO',
+    UNKNOWN: 'INFO',
   };
-  return icons[type] ?? '❓';
+  return icons[type] ?? 'INFO';
 }

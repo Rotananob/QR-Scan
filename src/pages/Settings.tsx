@@ -1,11 +1,13 @@
 import React, { useContext } from 'react';
 import {
-  Sun, Moon, Monitor, Shield, Trash2, Info, Globe
+  Sun, Moon, Monitor, Shield, Trash2, Info, Globe, Crown, ArrowRight, User
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/common/Button';
 import { Modal } from '../components/common/Modal';
 import { AppContext } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import type { AppSettings } from '../types/qr';
 
 const ThemeOption: React.FC<{
@@ -65,7 +67,9 @@ const Toggle: React.FC<{
 
 export const SettingsPage: React.FC = () => {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const { settings, updateSettings, clearAll, showToast, history } = useContext(AppContext);
+  const { user, isLifetime } = useAuth();
   const [clearConfirmOpen, setClearConfirmOpen] = React.useState(false);
 
   const handleClearAll = async () => {
@@ -86,6 +90,66 @@ export const SettingsPage: React.FC = () => {
       </div>
 
       <div className="flex-1 px-4 pb-24 space-y-5 max-w-lg mx-auto w-full">
+        {/* VIP Membership & Account Status */}
+        <section>
+          <div className="p-5 rounded-3xl bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 border border-indigo-500/20 text-white relative overflow-hidden shadow-xl">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                  <Crown className="w-4 h-4" />
+                </div>
+                <span className="font-bold text-sm">
+                  {isLifetime ? 'Lifetime VIP Member' : 'Standard Free User'}
+                </span>
+              </div>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                isLifetime
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                  : 'bg-white/10 text-slate-300'
+              }`}>
+                {isLifetime ? 'មួយជីវិត (Active)' : 'Free'}
+              </span>
+            </div>
+
+            <p className="text-xs text-slate-300 mb-4 leading-relaxed">
+              {isLifetime
+                ? 'អ្នកកំពុងរីករាយជាមួយមុខងារ VIP ពេញលេញ រួមមាន Cloud Sync, Pro Generator, និង Unlimited History។'
+                : 'ជាវ Lifetime VIP ត្រឹមតែ $3.00 មួយជីវិត ដើម្បីដោះសោមុខងារគ្មានដែនកំណត់។'}
+            </p>
+
+            <div className="flex items-center gap-2">
+              {!isLifetime ? (
+                <button
+                  type="button"
+                  onClick={() => navigate('/upgrade')}
+                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white font-bold text-xs shadow-md shadow-indigo-500/20 flex items-center gap-1.5 transition-all"
+                >
+                  <Crown className="w-3.5 h-3.5 text-amber-300" />
+                  ជាវ Lifetime ($3.00)
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => navigate('/generate')}
+                  className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md transition-all"
+                >
+                  ប្រើប្រាស់ QR Generator
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => navigate('/auth')}
+                className="px-3.5 py-2.5 rounded-xl border border-white/15 hover:bg-white/10 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+              >
+                <User className="w-3.5 h-3.5 text-slate-400" />
+                {user ? (user.displayName || 'គណនី') : 'ចូលប្រើ (Login)'}
+              </button>
+            </div>
+          </div>
+        </section>
+
         {/* Language */}
         <section>
           <h3 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">

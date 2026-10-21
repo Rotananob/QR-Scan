@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Sparkles, QrCode, Barcode, Landmark } from 'lucide-react';
 import { ScannerOverlay } from './ScannerOverlay';
 import { ScanStatus } from './ScanStatus';
 import { CameraControls } from './CameraControls';
@@ -88,11 +89,11 @@ export const QRScanner: React.FC<QRScannerProps> = ({
     }, 1200);
   };
 
-  const modes: { id: ScanMode; labelKey: string; defaultLabel: string; icon: string }[] = [
-    { id: 'all', labelKey: 'scanner.modes.all', defaultLabel: 'All-in-One', icon: '⚡' },
-    { id: 'qr', labelKey: 'scanner.modes.qr', defaultLabel: 'QR Code', icon: '📱' },
-    { id: 'barcode', labelKey: 'scanner.modes.barcode', defaultLabel: 'Barcode', icon: '🏷️' },
-    { id: 'khqr', labelKey: 'scanner.modes.khqr', defaultLabel: 'KHQR', icon: '🇰🇭' },
+  const modes: { id: ScanMode; labelKey: string; defaultLabel: string; icon: React.ComponentType<{ className?: string }> }[] = [
+    { id: 'all', labelKey: 'scanner.modes.all', defaultLabel: 'All-in-One', icon: Sparkles },
+    { id: 'qr', labelKey: 'scanner.modes.qr', defaultLabel: 'QR Code', icon: QrCode },
+    { id: 'barcode', labelKey: 'scanner.modes.barcode', defaultLabel: 'Barcode', icon: Barcode },
+    { id: 'khqr', labelKey: 'scanner.modes.khqr', defaultLabel: 'KHQR', icon: Landmark },
   ];
 
   return (
@@ -101,6 +102,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
       <div className="flex items-center justify-center p-1 bg-slate-200/60 dark:bg-slate-800/60 backdrop-blur-md rounded-xl max-w-sm mx-auto w-full border border-slate-300/40 dark:border-white/5 shadow-inner">
         {modes.map((m) => {
           const isSelected = scanMode === m.id;
+          const Icon = m.icon;
           return (
             <button
               key={m.id}
@@ -112,7 +114,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               )}
             >
-              <span>{m.icon}</span>
+              <Icon className="w-3.5 h-3.5" />
               <span>{t(m.labelKey, m.defaultLabel)}</span>
             </button>
           );

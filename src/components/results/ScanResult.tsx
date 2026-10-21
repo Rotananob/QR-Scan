@@ -233,18 +233,8 @@ export const ScanResult: React.FC<ScanResultProps> = ({
                 {socialData.username || socialData.url}
               </p>
             </div>
-            <span className="text-2xl">
-              {socialData.platform === 'telegram'
-                ? '✈️'
-                : socialData.platform === 'whatsapp'
-                ? '💬'
-                : socialData.platform === 'facebook'
-                ? '📘'
-                : socialData.platform === 'tiktok'
-                ? '🎵'
-                : socialData.platform === 'youtube'
-                ? '▶️'
-                : '📷'}
+            <span className="text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/50 dark:border-indigo-800/40">
+              {socialData.platform}
             </span>
           </div>
         )}

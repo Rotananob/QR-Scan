@@ -1,6 +1,8 @@
 {
   "nav": {
     "scan": "ស្កេន",
+    "generate": "បង្កើត QR",
+    "upgrade": "ជាវ VIP",
     "history": "ប្រវត្តិ",
     "favorites": "ចំណូលចិត្ត",
     "settings": "ការកំណត់"
