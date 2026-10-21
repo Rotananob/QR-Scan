@@ -48,7 +48,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 }) => {
   const { user, isLifetime, activateLifetimeVIP } = useAuth();
   
-  const fixedAmount = 0.01;
+  const fixedAmount = 3.00;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [invoice, setInvoice] = useState<InvoiceData | null>(null);
@@ -406,7 +406,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   </div>
                 </div>
                 <div className="text-right shrink-0">
-                  <div className="text-xl font-black text-slate-900 dark:text-white">$0.01</div>
+                  <div className="text-xl font-black text-slate-900 dark:text-white">$3.00</div>
                   <div className="text-[10px] text-slate-400 font-bold uppercase">USD</div>
                 </div>
               </div>

@@ -96,8 +96,8 @@ export default async function handler(req, res) {
       });
     }
 
-    // 3. Live real money test pricing: $0.01 USD
-    const numAmount = 0.01;
+    // 3. Official Lifetime VIP pricing: $3.00 USD
+    const numAmount = 3.00;
     const finalCurrency = 'USD';
 
     // 4. Generate live registered invoice using pay-helper KhqrGateway

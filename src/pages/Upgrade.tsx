@@ -105,14 +105,14 @@ export const UpgradePage: React.FC = () => {
           <div className="pt-4 flex flex-col items-center">
             <div className="flex items-baseline gap-2">
               <span className="text-4xl sm:text-6xl font-black text-white tracking-tight">
-                $0.01
+                $3.00
               </span>
               <span className="text-slate-400 text-sm font-semibold uppercase">
                 USD / មួយជីវិត
               </span>
             </div>
             <p className="text-xs text-amber-400 font-medium mt-1">
-              (ប្រហែល ~40 រៀល តាមរយៈ ABA PayWay / KHQR)
+              (ប្រហែល ~12,000 រៀល តាមរយៈ ABA PayWay / KHQR)
             </p>
           </div>
 
@@ -138,7 +138,7 @@ export const UpgradePage: React.FC = () => {
                 ) : (
                   <>
                     <Sparkles className="w-5 h-5 text-amber-300" />
-                    ជាវ Lifetime VIP ឥឡូវនេះ ($0.01)
+                    ជាវ Lifetime VIP ឥឡូវនេះ ($3.00)
                     <ArrowRight className="w-4 h-4 ml-1" />
                   </>
                 )}
@@ -259,7 +259,7 @@ export const UpgradePage: React.FC = () => {
       <CheckoutModal
         isOpen={checkoutOpen}
         onClose={() => setCheckoutOpen(false)}
-        defaultAmount={0.01}
+        defaultAmount={3.00}
         currency="USD"
       />
     </div>

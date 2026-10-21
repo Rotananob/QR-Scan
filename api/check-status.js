@@ -64,7 +64,7 @@ export default async function handler(req, res) {
               plan: 'LIFETIME_VIP',
               vipActivatedAt: FieldValue.serverTimestamp(),
               lastTranId: tranId,
-              amount: 0.01,
+              amount: 3.00,
               currency: 'USD',
               updatedAt: FieldValue.serverTimestamp(),
             },
