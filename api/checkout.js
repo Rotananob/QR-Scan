@@ -9,6 +9,7 @@
  */
 
 import { KhqrGateway } from 'pay-helper';
+import { invoiceStore } from './_invoiceStore.js';
 
 const CHECKOUT_URL = 'https://link.payway.com.kh/ABAPAYbR5506511';
 const MAX_DAILY_CHECKOUTS = 20;
@@ -96,16 +97,56 @@ export default async function handler(req, res) {
       });
     }
 
-    // 3. Official Lifetime VIP pricing: $3.00 USD
-    const numAmount = 3.00;
-    const finalCurrency = 'USD';
+    // 3. Official Lifetime VIP pricing: $3.00 USD (or amount specified in body)
+    const numAmount = typeof req.body?.amount === 'number' && req.body.amount > 0 ? req.body.amount : 3.00;
+    const finalCurrency = req.body?.currency || 'USD';
 
     // 4. Generate live registered invoice using pay-helper KhqrGateway
     const gw = getGateway();
+
+    let capturedToken = null;
+    let capturedClientId = null;
+    let capturedDeviceId = null;
+    let capturedCookieJar = null;
+
+    const origDoFetch = gw.doFetch.bind(gw);
+    gw.doFetch = async (url, opts) => {
+      if (url.includes('check-payment-status')) {
+        capturedToken = opts.headers?.token || capturedToken;
+        capturedCookieJar = opts.headers?.Cookie || capturedCookieJar;
+        try {
+          const b = JSON.parse(opts.body || '{}');
+          capturedClientId = b.client_id || capturedClientId;
+          capturedDeviceId = b.device_id || capturedDeviceId;
+        } catch (e) {}
+      }
+      return origDoFetch(url, opts);
+    };
+
     const invoice = await gw.createInvoice({
       amount: numAmount,
       currency: finalCurrency,
       checkoutUrl: CHECKOUT_URL,
+    });
+
+    // Run initial warmup check to capture the exact ABA session headers
+    try {
+      await invoice.checkStatus();
+    } catch (e) {
+      console.warn('[Checkout] Initial warmup check error:', e.message);
+    }
+
+    // Save in shared in-memory invoice store
+    const tranIdStr = String(invoice.tranId);
+    invoiceStore.set(tranIdStr, {
+      invoice,
+      checkStatus: invoice.checkStatus,
+      tranId: tranIdStr,
+      token: capturedToken,
+      clientId: capturedClientId,
+      deviceId: capturedDeviceId,
+      cookieJar: capturedCookieJar,
+      createdAt: Date.now(),
     });
 
     return res.status(200).json({
@@ -115,6 +156,9 @@ export default async function handler(req, res) {
       currency: invoice.currency,
       qrString: invoice.qrString,
       deeplinks: invoice.deeplinks,
+      token: capturedToken,
+      clientId: capturedClientId,
+      deviceId: capturedDeviceId,
       remainingDaily: rateCheck.remaining,
       maxDaily: MAX_DAILY_CHECKOUTS,
       status: 'PENDING',

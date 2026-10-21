@@ -37,6 +37,9 @@ interface InvoiceData {
     aba?: { ios?: string; android?: string };
     bakong?: { ios?: string; android?: string };
   };
+  token?: string;
+  clientId?: string;
+  deviceId?: string;
   remainingDaily?: number;
 }
 
@@ -57,6 +60,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [status, setStatus] = useState<'IDLE' | 'GENERATING' | 'PENDING' | 'PAID' | 'EXPIRED'>('IDLE');
   const [showConfetti, setShowConfetti] = useState(false);
   const [quota, setQuota] = useState<DailyQuotaInfo>(getDailyQuotaInfo());
+  const [checkingManual, setCheckingManual] = useState(false);
+  const [manualNotice, setManualNotice] = useState<string | null>(null);
 
   const pollerRef = useRef<number | null>(null);
   const timerRef = useRef<number | null>(null);
@@ -145,12 +150,19 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       const res = await fetch('/api/check-status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tranId, userId: user?.uid }),
+        body: JSON.stringify({
+          tranId,
+          token: invoice?.token,
+          deviceId: invoice?.deviceId,
+          clientId: invoice?.clientId,
+          userId: user?.uid,
+        }),
       });
       const data = await res.json();
       if (data.status === 'PAID') {
         setStatus('PAID');
         setShowConfetti(true);
+        setManualNotice(null);
         try {
           localStorage.removeItem('qr_active_checkout_session');
         } catch {}
@@ -165,7 +177,21 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       console.warn('[CheckoutModal] Check error:', e);
     }
     return false;
-  }, [activateLifetimeVIP, currency, user?.uid]);
+  }, [activateLifetimeVIP, currency, invoice?.clientId, invoice?.deviceId, invoice?.token, user?.uid]);
+
+  const handleManualVerify = async () => {
+    if (!invoice?.tranId || checkingManual) return;
+    setCheckingManual(true);
+    setManualNotice(null);
+    try {
+      const paid = await checkStatusOnce(invoice.tranId);
+      if (!paid) {
+        setManualNotice('មិនទាន់ទទួលបានការបញ្ជាក់ពី ABA នៅឡើយទេ។ ប្រសិនបើអ្នកបានផ្ទេររួចហើយ សូមរង់ចាំប្រហែល ៣-៥ វិនាទី រួចចុចផ្ទៀងផ្ទាត់ម្តងទៀត!');
+      }
+    } finally {
+      setCheckingManual(false);
+    }
+  };
 
   // Polling loop implementing behavioral cadence
   const scheduleNextPoll = useCallback(() => {
@@ -509,6 +535,27 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       <ExternalLink className="w-3 h-3 opacity-70" />
                     </button>
                   </div>
+                </div>
+              )}
+
+              {/* Instant Manual Verify Payment Button */}
+              {status === 'PENDING' && (
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    disabled={checkingManual}
+                    onClick={handleManualVerify}
+                    className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 transition-all active:scale-98 disabled:opacity-75"
+                  >
+                    <CheckCircle2 className={checkingManual ? 'w-4 h-4 animate-spin' : 'w-4 h-4'} />
+                    {checkingManual ? 'កំពុងផ្ទៀងផ្ទាត់ការទូទាត់ជាមួយ ABA...' : 'ខ្ញុំបានទូទាត់រួចហើយ (ផ្ទៀងផ្ទាត់ភ្លាមៗ)'}
+                  </button>
+
+                  {manualNotice && (
+                    <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/40 text-[11px] text-amber-800 dark:text-amber-300 text-center leading-relaxed">
+                      {manualNotice}
+                    </div>
+                  )}
                 </div>
               )}
 
