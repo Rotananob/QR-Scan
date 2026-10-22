@@ -132,8 +132,41 @@ export const ScannerPage: React.FC = () => {
     }
 
     try {
-      // Decode image supporting all formats (QR, Barcodes, Aztec, Data Matrix, etc.)
-      const scanner = new Html5Qrcode(tempId, {
+      // 1. Try Native Hardware BarcodeDetector acceleration first (ultra-fast & robust)
+      if (typeof window !== 'undefined' && 'BarcodeDetector' in window) {
+        try {
+          const detector = new (window as any).BarcodeDetector({
+            formats: ['qr_code', 'aztec', 'data_matrix', 'code_128', 'ean_13', 'upc_a'],
+          });
+          const bitmap = await createImageBitmap(file);
+          const detected = await detector.detect(bitmap);
+          if (detected && detected.length > 0) {
+            setPreviewImage(previewUrl);
+            handleDetected(detected[0].rawValue, detected[0].format || 'QR_CODE');
+            return;
+          }
+        } catch (bdErr) {
+          console.warn('[BarcodeDetector] Image scan fallback:', bdErr);
+        }
+      }
+
+      // 2. Try Dedicated QR Code engine (with renderImage: true for optimal canvas rendering)
+      try {
+        const qrScanner = new Html5Qrcode(tempId, {
+          verbose: false,
+          formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+        });
+        const scanRes = await qrScanner.scanFile(file, true);
+        qrScanner.clear();
+        setPreviewImage(previewUrl);
+        handleDetected(scanRes, 'QR_CODE');
+        return;
+      } catch (qrErr) {
+        console.warn('[QR-Only Decoder] Fallback to multi-format:', qrErr);
+      }
+
+      // 3. Fallback to Multi-format decoder
+      const allScanner = new Html5Qrcode(tempId, {
         verbose: false,
         formatsToSupport: ALL_FORMATS,
         experimentalFeatures: {
@@ -141,10 +174,10 @@ export const ScannerPage: React.FC = () => {
         },
       });
 
-      const scanRes = await scanner.scanFileV2(file, false);
-      scanner.clear();
+      const scanRes = await allScanner.scanFileV2(file, true);
+      allScanner.clear();
       setPreviewImage(previewUrl);
-      handleDetected(scanRes.decodedText, scanRes.result?.format?.formatName);
+      handleDetected(scanRes.decodedText, scanRes.result?.format?.formatName || 'QR_CODE');
     } catch {
       URL.revokeObjectURL(previewUrl);
       showToast(t('scanner.noQrFound'), 'error');

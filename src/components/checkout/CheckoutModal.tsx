@@ -104,12 +104,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       const updatedQuota = recordCheckoutQRGeneration();
       setQuota(updatedQuota);
 
-      // Render crisp QR code
+      // Render crisp KHQR code with full ISO/IEC Quiet Zone for 100% instant banking scan
       const qrUrl = await QRCode.toDataURL(data.qrString, {
-        width: 320,
-        margin: 1,
+        width: 360,
+        margin: 4,
         color: {
-          dark: '#0f172a',
+          dark: '#000000',
           light: '#ffffff',
         },
         errorCorrectionLevel: 'M',

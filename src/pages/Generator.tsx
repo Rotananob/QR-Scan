@@ -18,16 +18,18 @@ import {
   FileCode2,
   BookmarkCheck,
   Lock,
+  Landmark,
 } from 'lucide-react';
+import { generateClientKhqr } from '../services/khqrBuilder';
 import { useAuth } from '../context/AuthContext';
 import { AppContext } from '../context/AppContext';
 import { useNavigate } from 'react-router-dom';
 
-type QRType = 'URL' | 'TEXT' | 'WIFI' | 'PHONE' | 'EMAIL' | 'VCARD';
+type QRType = 'URL' | 'KHQR' | 'TEXT' | 'WIFI' | 'PHONE' | 'EMAIL' | 'VCARD';
 type CenterIconType = 'NONE' | 'CROWN' | 'WIFI' | 'LINK' | 'PHONE' | 'MAIL';
 
 const PRESET_THEMES = [
-  { id: 'classic', label: 'Classic Noir', fg: '#0f172a', bg: '#ffffff', vip: false },
+  { id: 'classic', label: 'Classic Noir', fg: '#000000', bg: '#ffffff', vip: false },
   { id: 'indigo', label: 'Royal Indigo', fg: '#4f46e5', bg: '#f8fafc', vip: true },
   { id: 'gold', label: 'Imperial Gold', fg: '#b45309', bg: '#fffbeb', vip: true },
   { id: 'emerald', label: 'Cyber Emerald', fg: '#059669', bg: '#f0fdf4', vip: true },
@@ -49,22 +51,28 @@ export const GeneratorPage: React.FC = () => {
   const navigate = useNavigate();
 
   const [type, setType] = useState<QRType>('URL');
-  const [url, setUrl] = useState('https://');
-  const [text, setText] = useState('');
-  const [wifiSsid, setWifiSsid] = useState('');
-  const [wifiPass, setWifiPass] = useState('');
+  const [url, setUrl] = useState('https://google.com');
+  const [text, setText] = useState('Hello from QR Scan');
+  const [wifiSsid, setWifiSsid] = useState('My_Home_WiFi');
+  const [wifiPass, setWifiPass] = useState('12345678');
   const [wifiType, setWifiType] = useState<'WPA' | 'WEP' | 'nopass'>('WPA');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('+85512345678');
+  const [email, setEmail] = useState('contact@example.com');
   const [emailSubject, setEmailSubject] = useState('');
   const [emailBody, setEmailBody] = useState('');
-  const [vcardName, setVcardName] = useState('');
-  const [vcardPhone, setVcardPhone] = useState('');
-  const [vcardEmail, setVcardEmail] = useState('');
-  const [vcardOrg, setVcardOrg] = useState('');
+  const [vcardName, setVcardName] = useState('Sok Dara');
+  const [vcardPhone, setVcardPhone] = useState('+85512345678');
+  const [vcardEmail, setVcardEmail] = useState('dara@example.com');
+  const [vcardOrg, setVcardOrg] = useState('Tech Solutions');
 
-  // Pro Styling options (VIP)
-  const [fgColor, setFgColor] = useState('#0f172a');
+  // KHQR Generator States
+  const [khqrAccount, setKhqrAccount] = useState('rotana@abab');
+  const [khqrMerchant, setKhqrMerchant] = useState('ROTANA NOBB');
+  const [khqrAmount, setKhqrAmount] = useState('');
+  const [khqrCurrency, setKhqrCurrency] = useState<'USD' | 'KHR'>('USD');
+
+  // Pro Styling options (VIP) - Defaults to 100% pure black & white for maximum scannability
+  const [fgColor, setFgColor] = useState('#000000');
   const [bgColor, setBgColor] = useState('#ffffff');
   const [qrSize, setQrSize] = useState(400);
   const [centerIcon, setCenterIcon] = useState<CenterIconType>('NONE');
@@ -79,11 +87,11 @@ export const GeneratorPage: React.FC = () => {
     if (!isLifetime) {
       if (centerIcon !== 'NONE') setCenterIcon('NONE');
       if (frameText !== '') setFrameText('');
-      if (fgColor !== '#0f172a' || bgColor !== '#ffffff') {
-        setFgColor('#0f172a');
+      if (fgColor !== '#000000' || bgColor !== '#ffffff') {
+        setFgColor('#000000');
         setBgColor('#ffffff');
       }
-      if (qrSize > 400) setQrSize(300);
+      if (qrSize > 400) setQrSize(400);
     }
   }, [isLifetime]);
 
@@ -142,21 +150,73 @@ export const GeneratorPage: React.FC = () => {
     setQrSize(size);
   };
 
-  // Compute final payload
+  // Compute final payload with standard formatting for 100% scanner compatibility
   const getPayload = (): string => {
     switch (type) {
-      case 'URL':
-        return url.trim();
+      case 'URL': {
+        let clean = url.trim();
+        if (!clean) return '';
+        // If user typed domain without protocol (e.g. facebook.com), ensure https:// so phones treat it as a link
+        if (!/^https?:\/\//i.test(clean)) {
+          clean = 'https://' + clean;
+        }
+        return clean;
+      }
+      case 'KHQR': {
+        const account = khqrAccount.trim();
+        if (!account) return '';
+        try {
+          const numAmount = khqrAmount && parseFloat(khqrAmount) > 0 ? parseFloat(khqrAmount) : undefined;
+          return generateClientKhqr({
+            bakongId: account,
+            merchantName: khqrMerchant.trim() || 'MERCHANT',
+            merchantCity: 'Phnom Penh',
+            amount: numAmount,
+            currency: khqrCurrency,
+          });
+        } catch (err) {
+          console.warn('[KHQR Generator error]:', err);
+          return '';
+        }
+      }
       case 'TEXT':
-        return text;
-      case 'WIFI':
-        return `WIFI:S:${wifiSsid};T:${wifiType};P:${wifiPass};;`;
-      case 'PHONE':
-        return `tel:${phone.trim()}`;
-      case 'EMAIL':
-        return `mailto:${email.trim()}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
-      case 'VCARD':
-        return `BEGIN:VCARD\nVERSION:3.0\nFN:${vcardName}\nTEL:${vcardPhone}\nEMAIL:${vcardEmail}\nORG:${vcardOrg}\nEND:VCARD`;
+        return text.trim();
+      case 'WIFI': {
+        const ssid = wifiSsid.trim();
+        if (!ssid) return '';
+        if (wifiType === 'nopass') {
+          return `WIFI:S:${ssid};T:nopass;;`;
+        }
+        return `WIFI:S:${ssid};T:${wifiType};P:${wifiPass};;`;
+      }
+      case 'PHONE': {
+        const clean = phone.trim().replace(/\s+/g, '');
+        return clean ? `tel:${clean}` : '';
+      }
+      case 'EMAIL': {
+        const clean = email.trim();
+        if (!clean) return '';
+        const params: string[] = [];
+        if (emailSubject.trim()) params.push(`subject=${encodeURIComponent(emailSubject.trim())}`);
+        if (emailBody.trim()) params.push(`body=${encodeURIComponent(emailBody.trim())}`);
+        const q = params.length > 0 ? `?${params.join('&')}` : '';
+        return `mailto:${clean}${q}`;
+      }
+      case 'VCARD': {
+        const name = vcardName.trim();
+        const tel = vcardPhone.trim();
+        if (!name && !tel) return '';
+        const lines = [
+          'BEGIN:VCARD',
+          'VERSION:3.0',
+          `FN:${name || 'Contact'}`,
+          tel ? `TEL:${tel}` : '',
+          vcardEmail.trim() ? `EMAIL:${vcardEmail.trim()}` : '',
+          vcardOrg.trim() ? `ORG:${vcardOrg.trim()}` : '',
+          'END:VCARD',
+        ].filter(Boolean);
+        return lines.join('\n');
+      }
       default:
         return '';
     }
@@ -173,55 +233,55 @@ export const GeneratorPage: React.FC = () => {
     const canvas = document.createElement('canvas');
     QRCode.toCanvas(canvas, payload, {
       width: qrSize,
-      margin: 2,
+      margin: 4, // 100% ISO/IEC 18004 Quiet Zone compliant (minimum 4 modules)
       color: {
         dark: fgColor,
         light: bgColor,
       },
-      errorCorrectionLevel: 'H', // Highest error correction for logo embedding
+      errorCorrectionLevel: 'H', // Highest error correction for maximum durability & instant scanning
     })
       .then(() => {
-        const extraBottom = frameText ? 56 : 0;
+        // If standard clean QR (no logo & no frame), use pristine ISO-compliant canvas directly
+        if (centerIcon === 'NONE' && !frameText) {
+          setQrDataUrl(canvas.toDataURL('image/png'));
+          return;
+        }
+
+        const extraBottom = frameText ? 60 : 0;
         const finalCanvas = document.createElement('canvas');
         finalCanvas.width = qrSize;
         finalCanvas.height = qrSize + extraBottom;
         const ctx = finalCanvas.getContext('2d');
         if (!ctx) return;
 
-        // Draw background
+        // Draw solid background
         ctx.fillStyle = bgColor;
         ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
 
         // Draw the QR
         ctx.drawImage(canvas, 0, 0);
 
-        // Center Icon Overlay
+        // Center Icon Overlay (NO DROP SHADOW - pure contrast to prevent module corruption)
         if (centerIcon !== 'NONE') {
-          const iconSize = Math.floor(qrSize * 0.22);
+          const iconSize = Math.floor(qrSize * 0.18);
           const iconX = (qrSize - iconSize) / 2;
           const iconY = (qrSize - iconSize) / 2;
 
-          // Draw rounded badge background
-          ctx.save();
-          ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
-          ctx.shadowBlur = 10;
-          ctx.shadowOffsetX = 0;
-          ctx.shadowOffsetY = 4;
+          // Draw clean solid badge background
           ctx.fillStyle = bgColor;
           ctx.beginPath();
-          const r = iconSize * 0.28;
+          const r = iconSize * 0.25;
           ctx.roundRect(iconX, iconY, iconSize, iconSize, r);
           ctx.fill();
-          ctx.restore();
 
           // Border on badge
           ctx.strokeStyle = fgColor;
-          ctx.lineWidth = 2.5;
+          ctx.lineWidth = 2;
           ctx.beginPath();
           ctx.roundRect(iconX + 1, iconY + 1, iconSize - 2, iconSize - 2, r);
           ctx.stroke();
 
-          // Render clean professional typography emblem inside badge (No emojis)
+          // Render clean typography emblem inside badge (No emojis, no shadow blur)
           const iconTextMap: Record<CenterIconType, string> = {
             NONE: '',
             CROWN: 'VIP',
@@ -233,32 +293,30 @@ export const GeneratorPage: React.FC = () => {
           const badgeText = iconTextMap[centerIcon];
           if (badgeText) {
             ctx.fillStyle = fgColor;
-            ctx.font = `900 ${Math.floor(iconSize * 0.36)}px system-ui, -apple-system, sans-serif`;
+            ctx.font = `900 ${Math.floor(iconSize * 0.38)}px system-ui, -apple-system, sans-serif`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(badgeText, iconX + iconSize / 2, iconY + iconSize / 2 + 1);
+            ctx.fillText(badgeText, iconX + iconSize / 2, iconY + iconSize / 2);
           }
         }
 
-        // Draw Frame Banner
+        // Draw Frame Banner with safe quiet zone separation
         if (frameText) {
-          const bannerY = qrSize + 6;
-          const bannerHeight = 38;
-          const bannerX = 24;
-          const bannerWidth = qrSize - 48;
+          const bannerY = qrSize + 14;
+          const bannerHeight = 36;
+          const bannerX = 20;
+          const bannerWidth = qrSize - 40;
 
-          ctx.save();
           ctx.fillStyle = fgColor;
           ctx.beginPath();
-          ctx.roundRect(bannerX, bannerY, bannerWidth, bannerHeight, 10);
+          ctx.roundRect(bannerX, bannerY, bannerWidth, bannerHeight, 8);
           ctx.fill();
 
           ctx.fillStyle = bgColor;
-          ctx.font = 'bold 14px system-ui, -apple-system, sans-serif';
+          ctx.font = 'bold 13px system-ui, -apple-system, sans-serif';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(frameText, qrSize / 2, bannerY + bannerHeight / 2);
-          ctx.restore();
         }
 
         setQrDataUrl(finalCanvas.toDataURL('image/png'));
@@ -281,6 +339,10 @@ export const GeneratorPage: React.FC = () => {
     vcardPhone,
     vcardEmail,
     vcardOrg,
+    khqrAccount,
+    khqrMerchant,
+    khqrAmount,
+    khqrCurrency,
     fgColor,
     bgColor,
     qrSize,
@@ -312,7 +374,7 @@ export const GeneratorPage: React.FC = () => {
     try {
       const svgString = await QRCode.toString(payload, {
         type: 'svg',
-        margin: 2,
+        margin: 4, // 100% ISO/IEC 18004 Quiet Zone compliant
         color: {
           dark: fgColor,
           light: bgColor,
@@ -386,6 +448,7 @@ export const GeneratorPage: React.FC = () => {
 
   const types = [
     { id: 'URL', label: 'Link / URL', icon: LinkIcon },
+    { id: 'KHQR', label: 'KHQR (Bank)', icon: Landmark },
     { id: 'TEXT', label: 'អត្ថបទ (Text)', icon: FileText },
     { id: 'WIFI', label: 'Wi-Fi Network', icon: Wifi },
     { id: 'PHONE', label: 'លេខទូរស័ព្ទ', icon: Phone },
@@ -408,7 +471,7 @@ export const GeneratorPage: React.FC = () => {
             )}
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            បង្កើត QR code គុណភាពខ្ពស់ ជាមួយ Logo កណ្តាល, Frame, ពណ៌ពិសេស និងទាញយកជា Vector SVG / HD PNG
+            បង្កើត QR code គុណភាពខ្ពស់ ស្កេនឆាប់ស្គាល់ ១០០% ជាមួយ KHQR ធនាគារ, Logo, Frame, និងទាញយកជា Vector SVG / HD PNG
           </p>
         </div>
         {!isLifetime && (
@@ -427,7 +490,7 @@ export const GeneratorPage: React.FC = () => {
         {/* Left Form controls */}
         <div className="lg:col-span-7 space-y-5">
           {/* Type selector */}
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+          <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
             {types.map((t) => {
               const Icon = t.icon;
               const isActive = type === t.id;
@@ -436,9 +499,9 @@ export const GeneratorPage: React.FC = () => {
                   key={t.id}
                   type="button"
                   onClick={() => setType(t.id as QRType)}
-                  className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border text-xs font-semibold transition-all ${
+                  className={`flex flex-col items-center gap-1.5 p-2.5 rounded-2xl border text-xs font-semibold transition-all ${
                     isActive
-                      ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-500 text-indigo-600 dark:text-indigo-400 shadow-sm scale-102'
+                      ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-500 text-indigo-600 dark:text-indigo-400 shadow-sm scale-102 ring-1 ring-indigo-500'
                       : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:border-slate-300'
                   }`}
                 >
@@ -454,7 +517,7 @@ export const GeneratorPage: React.FC = () => {
             {type === 'URL' && (
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                  គេហទំព័រ ឬ Link
+                  គេហទំព័រ ឬ Link (URL)
                 </label>
                 <input
                   type="url"
@@ -463,6 +526,87 @@ export const GeneratorPage: React.FC = () => {
                   placeholder="https://yourwebsite.com"
                   className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  ប្រព័ន្ធនឹងធានាថាមាន https:// ត្រឹមត្រូវដើម្បីឱ្យទូរស័ព្ទស្កេនស្គាល់ជា Link ភ្លាមៗ
+                </p>
+              </div>
+            )}
+
+            {type === 'KHQR' && (
+              <div className="space-y-3">
+                <div className="p-3 rounded-2xl bg-gradient-to-r from-red-500/10 via-amber-500/10 to-transparent border border-red-500/20 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Landmark className="w-4 h-4 text-red-500" />
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                      ស្តង់ដារ KHQR ជាតិ (Bakong & ABA Ready)
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-red-600 text-white">
+                    KHQR EMVCo
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      គណនីធនាគារ ឬ Bakong ID
+                    </label>
+                    <input
+                      type="text"
+                      value={khqrAccount}
+                      onChange={(e) => setKhqrAccount(e.target.value)}
+                      placeholder="e.g. 012345678@abab"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      ឧទាហរណ៍: 012345678@abab ឬ my_merchant@abab
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      ឈ្មោះហាង / អ្នកទទួល (Merchant Name)
+                    </label>
+                    <input
+                      type="text"
+                      value={khqrMerchant}
+                      onChange={(e) => setKhqrMerchant(e.target.value)}
+                      placeholder="ROTANA NOBB"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold uppercase"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      ចំនួនទឹកប្រាក់ (ទុកទំនេរបើមិនកំណត់)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={khqrAmount}
+                      onChange={(e) => setKhqrAmount(e.target.value)}
+                      placeholder="0.00 (ទុកទំនេរបើចង់ឱ្យអ្នកផ្ញើវាយលុយ)"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                      រូបិយប័ណ្ណ
+                    </label>
+                    <select
+                      value={khqrCurrency}
+                      onChange={(e) => setKhqrCurrency(e.target.value as 'USD' | 'KHR')}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
+                    >
+                      <option value="USD">USD ($) ដុល្លារ</option>
+                      <option value="KHR">KHR (៛) រៀល</option>
+                    </select>
+                  </div>
+                </div>
               </div>
             )}
 

@@ -7,9 +7,9 @@ export async function generateQRDataUrl(text: string): Promise<string> {
   try {
     return await QRCode.toDataURL(text, {
       width: 512,
-      margin: 2,
+      margin: 4, // ISO/IEC 18004 Quiet Zone compliant (minimum 4 modules)
       color: {
-        dark: '#0f172a',
+        dark: '#000000', // 100% pure black for optimal contrast and instant scanning
         light: '#ffffff',
       },
       errorCorrectionLevel: 'M',
