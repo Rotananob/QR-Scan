@@ -23,7 +23,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '../common/Button';
 import { SafeLinkModal } from '../common/SafeLinkModal';
 import { KHQRBankModal } from './KHQRBankModal';
-import { detectKHQRBank, launchBankApp } from '../../services/bankDeepLink';
+import { detectKHQRBank, launchBankApp, CAMBODIA_BANKS } from '../../services/bankDeepLink';
 import { downloadQRImage } from '../../services/qrImage';
 import { copyToClipboard, shareContent, canShare } from '../../services/share';
 import type {
@@ -113,18 +113,37 @@ export const ResultActions: React.FC<ResultActionsProps> = ({
       case 'KHQR': {
         const khqr = result.parsed as KHQRData;
         const targetBank = detectKHQRBank(khqr?.bakongAccountId, khqr?.acquiringBank);
+        const isAba = targetBank.id === 'aba';
+        const primaryBank = isAba ? targetBank : CAMBODIA_BANKS.bakong;
+
         return (
           <div className="flex flex-col gap-2.5">
-            {/* Primary Action Button: Open Beneficiary Bank App directly */}
+            {/* Primary Action Button: Verified ABA Mobile or Verified Bakong App */}
             <Button
-              onClick={() => launchBankApp(targetBank, result.raw)}
+              onClick={() => launchBankApp(primaryBank, result.raw)}
               className="w-full gap-2 text-white shadow-md font-bold tracking-wide transition-all h-12"
-              style={{ backgroundColor: targetBank.color }}
+              style={{ backgroundColor: primaryBank.color }}
               size="lg"
             >
               <ArrowUpRight className="w-5 h-5" />
-              <span>បើកទូទាត់ក្នុង {targetBank.shortName}</span>
+              <span>
+                {isAba
+                  ? '🚀 បើកទូទាត់ក្នុង ABA Mobile'
+                  : '🚀 បើកទូទាត់ក្នុង Bakong App'}
+              </span>
             </Button>
+
+            {/* If target bank was ACLEDA/Wing etc., also offer that bank button */}
+            {!isAba && targetBank.id !== 'bakong' && (
+              <Button
+                onClick={() => launchBankApp(targetBank, result.raw)}
+                className="w-full gap-1.5 text-white shadow-sm font-semibold h-10 text-xs"
+                style={{ backgroundColor: targetBank.color }}
+              >
+                <ArrowUpRight className="w-4 h-4" />
+                <span>បើកក្នុង {targetBank.shortName}</span>
+              </Button>
+            )}
 
             {/* Quick Bank Selector & QR Download */}
             <div className="grid grid-cols-2 gap-2">
@@ -134,7 +153,7 @@ export const ResultActions: React.FC<ResultActionsProps> = ({
                 className="gap-1.5 text-xs font-semibold h-10 border-red-200 dark:border-red-900/40 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20"
               >
                 <Landmark className="w-3.5 h-3.5" />
-                <span>ធនាគារផ្សេងទៀត...</span>
+                <span>ធនាគារទាំងអស់...</span>
               </Button>
               <Button
                 variant="outline"

@@ -17,6 +17,8 @@ import {
 import { useTranslation } from 'react-i18next';
 import { ContentTypeBadge } from './ContentTypeBadge';
 import { ResultActions } from './ResultActions';
+import { KHQRAutoLaunchBanner } from './KHQRAutoLaunchBanner';
+import { KHQRBankModal } from './KHQRBankModal';
 import { detectKHQRBank } from '../../services/bankDeepLink';
 import { generateQRDataUrl } from '../../services/qrImage';
 import { copyToClipboard } from '../../services/share';
@@ -55,6 +57,7 @@ export const ScanResult: React.FC<ScanResultProps> = ({
   const [showWifiPassword, setShowWifiPassword] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
+  const [bankModalOpen, setBankModalOpen] = useState(false);
 
   const copyField = async (text: string, fieldName: string) => {
     await copyToClipboard(text);
@@ -106,6 +109,23 @@ export const ScanResult: React.FC<ScanResultProps> = ({
       </div>
 
       <div className="p-4 space-y-3.5">
+        {/* Top Priority: Instant Bank Auto-Launch Option Banner */}
+        {khqrData && (
+          <>
+            <KHQRAutoLaunchBanner
+              khqr={khqrData}
+              onOpenAllBanks={() => setBankModalOpen(true)}
+              onCopySuccess={onCopy}
+            />
+            <KHQRBankModal
+              open={bankModalOpen}
+              onClose={() => setBankModalOpen(false)}
+              khqr={khqrData}
+              onCopySuccess={onCopy}
+            />
+          </>
+        )}
+
         {/* 1. Cambodian Bakong KHQR Display Card */}
         {khqrData && (
           <div className="rounded-xl overflow-hidden border border-red-200 dark:border-red-900/50 bg-gradient-to-br from-red-500/5 via-rose-500/5 to-amber-500/5 p-4 space-y-3.5">

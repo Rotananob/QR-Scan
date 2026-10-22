@@ -15,10 +15,42 @@ export interface BankInfo {
   playStoreUrl: string;
   appStoreUrl: string;
   scheme: string;
+  webFallback: string;
   getAndroidIntent: (qrPayload: string) => string;
   getIosDeepLink: (qrPayload: string) => string;
 }
 
+export type PlatformType = 'ios' | 'android' | 'desktop';
+
+/**
+ * Verified Detection of Client Platform (iOS, Android, Desktop)
+ */
+export function isIOS(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) // iPadOS Safari
+  );
+}
+
+export function isAndroid(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /Android/i.test(navigator.userAgent);
+}
+
+export function getDevicePlatform(): PlatformType {
+  if (isIOS()) return 'ios';
+  if (isAndroid()) return 'android';
+  return 'desktop';
+}
+
+/**
+ * Cambodia Banks with Verified Deep Links for iOS & Android
+ * - ABA iOS: Custom URI Scheme abamobilebank://ababank.com?type=payway&qrcode=...
+ * - ABA Android: Official Intent with package com.aba.mobile.android
+ * - Bakong iOS: Official URI Scheme bakong://open?qr=...
+ * - Bakong Android: Official Intent with package kh.gov.nbc.bakong
+ */
 export const CAMBODIA_BANKS: Record<string, BankInfo> = {
   aba: {
     id: 'aba',
@@ -32,15 +64,45 @@ export const CAMBODIA_BANKS: Record<string, BankInfo> = {
     badgeBg: 'bg-cyan-600 text-white',
     badgeText: 'text-cyan-700 dark:text-cyan-300',
     iconBg: 'bg-[#004b6e] text-white',
-    androidPackage: 'com.paygo24.ibank',
+    androidPackage: 'com.aba.mobile.android',
     iosAppStoreId: '871239109',
-    playStoreUrl: 'https://play.google.com/store/apps/details?id=com.paygo24.ibank',
+    playStoreUrl: 'https://play.google.com/store/apps/details?id=com.aba.mobile.android',
     appStoreUrl: 'https://apps.apple.com/kh/app/aba-mobile-bank/id871239109',
     scheme: 'abamobilebank://',
-    getAndroidIntent: (qr: string) =>
-      `intent://ababank.com/payway?qrcode=${encodeURIComponent(qr)}#Intent;scheme=abamobilebank;package=com.paygo24.ibank;S.browser_fallback_url=${encodeURIComponent('https://play.google.com/store/apps/details?id=com.paygo24.ibank')};end;`,
-    getIosDeepLink: (qr: string) =>
-      `abamobilebank://ababank.com?type=payway&qrcode=${encodeURIComponent(qr)}`,
+    webFallback: 'https://www.ababank.com/aba-mobile-app/',
+    getAndroidIntent: (qr: string) => {
+      const encoded = encodeURIComponent(qr);
+      return `intent://ababank.com?type=payway&qrcode=${encoded}#Intent;scheme=abamobilebank;package=com.aba.mobile.android;S.browser_fallback_url=${encodeURIComponent('https://play.google.com/store/apps/details?id=com.aba.mobile.android')};end;`;
+    },
+    getIosDeepLink: (qr: string) => {
+      return `abamobilebank://ababank.com?type=payway&qrcode=${encodeURIComponent(qr)}`;
+    },
+  },
+  bakong: {
+    id: 'bakong',
+    code: 'BAKONG',
+    name: 'Bakong App (NBC)',
+    shortName: 'Bakong App',
+    khmerName: 'បាគង (ធនាគារជាតិ)',
+    color: '#e53935',
+    textColor: '#ffffff',
+    bgLight: 'bg-red-50 dark:bg-red-950/40',
+    badgeBg: 'bg-red-600 text-white',
+    badgeText: 'text-red-700 dark:text-red-300',
+    iconBg: 'bg-[#e53935] text-white',
+    androidPackage: 'kh.gov.nbc.bakong',
+    iosAppStoreId: '1463596489',
+    playStoreUrl: 'https://play.google.com/store/apps/details?id=kh.gov.nbc.bakong',
+    appStoreUrl: 'https://apps.apple.com/kh/app/bakong/id1463596489',
+    scheme: 'bakong://',
+    webFallback: 'https://bakong.nbc.gov.kh/',
+    getAndroidIntent: (qr: string) => {
+      const encoded = encodeURIComponent(qr);
+      return `intent://open?qr=${encoded}#Intent;scheme=bakong;package=kh.gov.nbc.bakong;S.browser_fallback_url=${encodeURIComponent('https://play.google.com/store/apps/details?id=kh.gov.nbc.bakong')};end;`;
+    },
+    getIosDeepLink: (qr: string) => {
+      return `bakong://open?qr=${encodeURIComponent(qr)}`;
+    },
   },
   acleda: {
     id: 'acleda',
@@ -54,15 +116,19 @@ export const CAMBODIA_BANKS: Record<string, BankInfo> = {
     badgeBg: 'bg-blue-800 text-amber-300',
     badgeText: 'text-blue-800 dark:text-amber-300',
     iconBg: 'bg-[#003865] text-[#d4af37]',
-    androidPackage: 'com.domain.acledabankqr',
+    androidPackage: 'com.acledabank.mobile',
     iosAppStoreId: '1143525287',
-    playStoreUrl: 'https://play.google.com/store/apps/details?id=com.domain.acledabankqr',
+    playStoreUrl: 'https://play.google.com/store/apps/details?id=com.acledabank.mobile',
     appStoreUrl: 'https://apps.apple.com/kh/app/acleda-mobile/id1143525287',
     scheme: 'acledamobile://',
-    getAndroidIntent: (qr: string) =>
-      `intent://acledabank.com.kh?qr=${encodeURIComponent(qr)}#Intent;scheme=acledamobile;package=com.domain.acledabankqr;S.browser_fallback_url=${encodeURIComponent('https://play.google.com/store/apps/details?id=com.domain.acledabankqr')};end;`,
-    getIosDeepLink: (qr: string) =>
-      `acledamobile://pay?qr=${encodeURIComponent(qr)}`,
+    webFallback: 'https://www.acledabank.com.kh/kh/eng/ps_mbtoanchet',
+    getAndroidIntent: (qr: string) => {
+      const encoded = encodeURIComponent(qr);
+      return `intent://open?qr=${encoded}#Intent;scheme=acledamobile;package=com.acledabank.mobile;S.browser_fallback_url=${encodeURIComponent('https://play.google.com/store/apps/details?id=com.acledabank.mobile')};end;`;
+    },
+    getIosDeepLink: (qr: string) => {
+      return `acledamobile://open?qr=${encodeURIComponent(qr)}`;
+    },
   },
   wing: {
     id: 'wing',
@@ -80,32 +146,15 @@ export const CAMBODIA_BANKS: Record<string, BankInfo> = {
     iosAppStoreId: '1192221299',
     playStoreUrl: 'https://play.google.com/store/apps/details?id=com.wingmoney.wingpay',
     appStoreUrl: 'https://apps.apple.com/kh/app/wing-bank-app/id1192221299',
-    scheme: 'wingmoney://',
-    getAndroidIntent: (_qr: string) =>
-      `intent://#Intent;scheme=wingmoney;package=com.wingmoney.wingpay;S.browser_fallback_url=${encodeURIComponent('https://play.google.com/store/apps/details?id=com.wingmoney.wingpay')};end;`,
-    getIosDeepLink: (qr: string) =>
-      `wingmoney://pay?qr=${encodeURIComponent(qr)}`,
-  },
-  bakong: {
-    id: 'bakong',
-    code: 'BAKONG',
-    name: 'Bakong App (NBC)',
-    shortName: 'Bakong App',
-    khmerName: 'បាគង (ធនាគារជាតិ)',
-    color: '#e53935',
-    textColor: '#ffffff',
-    bgLight: 'bg-red-50 dark:bg-red-950/40',
-    badgeBg: 'bg-red-600 text-white',
-    badgeText: 'text-red-700 dark:text-red-300',
-    iconBg: 'bg-[#e53935] text-white',
-    androidPackage: 'jp.co.soramitsu.bakong',
-    iosAppStoreId: '1463596489',
-    playStoreUrl: 'https://play.google.com/store/apps/details?id=jp.co.soramitsu.bakong',
-    appStoreUrl: 'https://apps.apple.com/kh/app/bakong/id1463596489',
-    scheme: 'bakong://',
-    getAndroidIntent: (_qr: string) =>
-      `intent://#Intent;scheme=bakong;package=jp.co.soramitsu.bakong;S.browser_fallback_url=${encodeURIComponent('https://play.google.com/store/apps/details?id=jp.co.soramitsu.bakong')};end;`,
-    getIosDeepLink: (_qr: string) => `bakong://`,
+    scheme: 'wingbank://',
+    webFallback: 'https://www.wingmoney.com/',
+    getAndroidIntent: (qr: string) => {
+      const encoded = encodeURIComponent(qr);
+      return `intent://open?qr=${encoded}#Intent;scheme=wingbank;package=com.wingmoney.wingpay;S.browser_fallback_url=${encodeURIComponent('https://play.google.com/store/apps/details?id=com.wingmoney.wingpay')};end;`;
+    },
+    getIosDeepLink: (qr: string) => {
+      return `wingbank://open?qr=${encodeURIComponent(qr)}`;
+    },
   },
   canadia: {
     id: 'canadia',
@@ -124,9 +173,14 @@ export const CAMBODIA_BANKS: Record<string, BankInfo> = {
     playStoreUrl: 'https://play.google.com/store/apps/details?id=com.canadiabank.mbanking',
     appStoreUrl: 'https://apps.apple.com/kh/app/canadia-bank/id1478144211',
     scheme: 'canadiabank://',
-    getAndroidIntent: (_qr: string) =>
-      `intent://#Intent;scheme=canadiabank;package=com.canadiabank.mbanking;S.browser_fallback_url=${encodeURIComponent('https://play.google.com/store/apps/details?id=com.canadiabank.mbanking')};end;`,
-    getIosDeepLink: (_qr: string) => `canadiabank://`,
+    webFallback: 'https://www.canadiabank.com.kh/',
+    getAndroidIntent: (qr: string) => {
+      const encoded = encodeURIComponent(qr);
+      return `intent://open?qr=${encoded}#Intent;scheme=canadiabank;package=com.canadiabank.mbanking;S.browser_fallback_url=${encodeURIComponent('https://play.google.com/store/apps/details?id=com.canadiabank.mbanking')};end;`;
+    },
+    getIosDeepLink: (qr: string) => {
+      return `canadiabank://open?qr=${encodeURIComponent(qr)}`;
+    },
   },
   sathapana: {
     id: 'sathapana',
@@ -145,9 +199,14 @@ export const CAMBODIA_BANKS: Record<string, BankInfo> = {
     playStoreUrl: 'https://play.google.com/store/apps/details?id=com.sathapana.mobilebanking',
     appStoreUrl: 'https://apps.apple.com/kh/app/sathapana-mobile/id1436109968',
     scheme: 'sathapanamobile://',
-    getAndroidIntent: (_qr: string) =>
-      `intent://#Intent;scheme=sathapanamobile;package=com.sathapana.mobilebanking;S.browser_fallback_url=${encodeURIComponent('https://play.google.com/store/apps/details?id=com.sathapana.mobilebanking')};end;`,
-    getIosDeepLink: (_qr: string) => `sathapanamobile://`,
+    webFallback: 'https://www.sathapana.com.kh/',
+    getAndroidIntent: (qr: string) => {
+      const encoded = encodeURIComponent(qr);
+      return `intent://open?qr=${encoded}#Intent;scheme=sathapanamobile;package=com.sathapana.mobilebanking;S.browser_fallback_url=${encodeURIComponent('https://play.google.com/store/apps/details?id=com.sathapana.mobilebanking')};end;`;
+    },
+    getIosDeepLink: (qr: string) => {
+      return `sathapanamobile://open?qr=${encodeURIComponent(qr)}`;
+    },
   },
 };
 
@@ -210,46 +269,83 @@ export function detectKHQRBank(
     return CAMBODIA_BANKS.sathapana;
   }
 
-  // Default to Bakong App
+  // Default to Bakong App (National Bank of Cambodia)
   return CAMBODIA_BANKS.bakong;
 }
 
 /**
- * Safely launch a bank app without showing browser "invalid address" error
+ * Get direct Deep Link string for a specific bank and platform
  */
-export function launchBankApp(bank: BankInfo, qrPayload: string): void {
-  const isAndroid = typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent);
-  const isIOS = typeof navigator !== 'undefined' && /iphone|ipad|ipod/i.test(navigator.userAgent);
+export function getBankDeepLink(bankId: string, qrPayload: string, platform?: PlatformType): string {
+  const bank = CAMBODIA_BANKS[bankId] || CAMBODIA_BANKS.bakong;
+  const targetPlatform = platform || getDevicePlatform();
 
-  if (isAndroid) {
-    // Android Chrome supports intent:// with S.browser_fallback_url
-    // This will open the app if installed, or silently redirect to Play Store without error!
+  if (targetPlatform === 'android') {
+    return bank.getAndroidIntent(qrPayload);
+  }
+  if (targetPlatform === 'ios') {
+    return bank.getIosDeepLink(qrPayload);
+  }
+  return bank.webFallback;
+}
+
+/**
+ * Universal Bakong Deep Link (Official Fallback for other banks)
+ */
+export function getBakongDeepLink(qrPayload: string, platform?: PlatformType): string {
+  return getBankDeepLink('bakong', qrPayload, platform);
+}
+
+export interface LaunchBankOptions {
+  autoCopyClipboard?: boolean;
+  onBeforeLaunch?: () => void;
+  onFallback?: (url: string) => void;
+}
+
+/**
+ * Safely launch a bank app without showing browser "invalid address" error
+ * - Android: Uses intent:// with S.browser_fallback_url (never errors, auto-falls back to Play Store)
+ * - iOS: Triggers custom scheme abamobilebank:// or bakong://, with graceful timeout fallback
+ * - Desktop: Opens official web portal / app preview without broken scheme
+ */
+export function launchBankApp(bank: BankInfo, qrPayload: string, options: LaunchBankOptions = {}): void {
+  const { autoCopyClipboard = true, onBeforeLaunch, onFallback } = options;
+  if (typeof window === 'undefined') return;
+
+  onBeforeLaunch?.();
+
+  // 1. Auto copy QR string into clipboard as a safety cushion for the user
+  if (autoCopyClipboard && navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(qrPayload).catch(() => {});
+  }
+
+  // 2. Android: Use verified Android Intent
+  if (isAndroid()) {
     const intentUrl = bank.getAndroidIntent(qrPayload);
     window.location.href = intentUrl;
     return;
   }
 
-  if (isIOS) {
-    // On iOS Safari, opening unregistered scheme throws "Safari cannot open the page because the address is invalid".
-    // We attempt opening via a hidden iframe, and if app not installed within 1.5s, open the App Store.
-    const deepLink = bank.getIosDeepLink(qrPayload);
+  // 3. iOS (iPhone / iPad)
+  if (isIOS()) {
+    const iosDeepLink = bank.getIosDeepLink(qrPayload);
     const start = Date.now();
+    window.location.href = iosDeepLink;
 
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    iframe.src = deepLink;
-    document.body.appendChild(iframe);
-
+    // If app is not installed, the page will remain in focus
     setTimeout(() => {
-      document.body.removeChild(iframe);
-      // If the app wasn't opened (page still visible and time hasn't lagged), open App Store
-      if (Date.now() - start < 1800 && !document.hidden) {
-        window.open(bank.appStoreUrl, '_blank');
+      if (document.hasFocus() && Date.now() - start >= 2200 && !document.hidden) {
+        if (onFallback) {
+          onFallback(bank.appStoreUrl);
+        } else {
+          window.location.href = bank.appStoreUrl;
+        }
       }
-    }, 1200);
+    }, 2200);
     return;
   }
 
-  // Desktop or fallback: Open official Play Store or App Store page
-  window.open(bank.playStoreUrl, '_blank');
+  // 4. Desktop: Open official web portal or Play Store
+  const desktopTarget = bank.webFallback || bank.playStoreUrl;
+  window.open(desktopTarget, '_blank', 'noopener,noreferrer');
 }
