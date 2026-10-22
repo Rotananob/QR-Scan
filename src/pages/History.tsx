@@ -105,10 +105,14 @@ export const HistoryPage: React.FC = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('history.title')}</h2>
-            {isLifetime && (
+            {isLifetime ? (
               <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20">
                 <Crown className="w-3 h-3 text-amber-500" />
-                VIP
+                VIP UNLIMITED
+              </span>
+            ) : (
+              <span className="text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-white/10 px-2 py-0.5 rounded-full">
+                Free ({history.length}/20)
               </span>
             )}
           </div>
@@ -154,6 +158,25 @@ export const HistoryPage: React.FC = () => {
             )}
           </div>
         </div>
+
+        {!isLifetime && (
+          <div className="flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-amber-500/10 via-indigo-500/10 to-transparent border border-amber-500/25 text-xs shadow-xs">
+            <div className="flex items-center gap-2">
+              <Crown className="w-4 h-4 text-amber-500 shrink-0" />
+              <div className="text-slate-700 dark:text-slate-300">
+                <span className="font-bold text-slate-900 dark:text-white">កូតា Free:</span> រក្សាទុកបានត្រឹម ២០ កូដ ({history.length}/20)។ Upgrade VIP ដើម្បីរក្សាទុកគ្មានដែនកំណត់ & Export!
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate('/upgrade')}
+              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white font-bold text-[11px] shadow-sm shrink-0 ml-2"
+            >
+              Upgrade VIP
+            </button>
+          </div>
+        )}
+
         <HistoryFilters
           query={query}
           filterType={filterType}

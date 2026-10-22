@@ -70,7 +70,22 @@ export function useHistory() {
     await storage.addHistoryItem(item);
     setHistory((prev) => {
       const filtered = prev.filter((i) => i.id !== item.id);
-      return [item, ...filtered];
+      const updated = [item, ...filtered];
+      const isVip = Boolean(
+        auth.currentUser &&
+        localStorage.getItem(`qr_scan_lifetime_vip_cached_${auth.currentUser.uid}`) === 'true'
+      );
+
+      // Free user history cap: strictly 20 items max
+      if (!isVip && updated.length > 20) {
+        const kept = updated.slice(0, 20);
+        const overflow = updated.slice(20);
+        for (const rem of overflow) {
+          storage.deleteHistoryItem(rem.id).catch(() => {});
+        }
+        return kept;
+      }
+      return updated;
     });
 
     // 2. Also store in Firestore if user is authenticated

@@ -10,6 +10,7 @@
 
 import { KhqrGateway } from 'pay-helper';
 import { invoiceStore } from './_invoiceStore.js';
+import { signPaymentSession } from './_security.js';
 
 const CHECKOUT_URL = 'https://link.payway.com.kh/ABAPAYbR5506511';
 const MAX_DAILY_CHECKOUTS = 20;
@@ -97,9 +98,9 @@ export default async function handler(req, res) {
       });
     }
 
-    // 3. Official Lifetime VIP pricing: $3.00 USD (or amount specified in body)
-    const numAmount = typeof req.body?.amount === 'number' && req.body.amount > 0 ? req.body.amount : 3.00;
-    const finalCurrency = req.body?.currency || 'USD';
+    // 3. Official Lifetime VIP pricing: strictly $3.00 USD (prevent unauthorized price override)
+    const numAmount = 3.00;
+    const finalCurrency = 'USD';
 
     // 4. Generate live registered invoice using pay-helper KhqrGateway
     const gw = getGateway();
@@ -136,8 +137,19 @@ export default async function handler(req, res) {
       console.warn('[Checkout] Initial warmup check error:', e.message);
     }
 
-    // Save in shared in-memory invoice store
     const tranIdStr = String(invoice.tranId);
+    const createdAt = Date.now();
+
+    // Cryptographically sign this payment session
+    const signature = signPaymentSession({
+      tranId: tranIdStr,
+      userId,
+      amount: numAmount,
+      currency: finalCurrency,
+      createdAt,
+    });
+
+    // Save in shared in-memory invoice store
     invoiceStore.set(tranIdStr, {
       invoice,
       checkStatus: invoice.checkStatus,
@@ -146,19 +158,25 @@ export default async function handler(req, res) {
       clientId: capturedClientId,
       deviceId: capturedDeviceId,
       cookieJar: capturedCookieJar,
-      createdAt: Date.now(),
+      userId,
+      amount: numAmount,
+      currency: finalCurrency,
+      createdAt,
+      signature,
     });
 
     return res.status(200).json({
       success: true,
       tranId: invoice.tranId,
-      amount: invoice.amount,
-      currency: invoice.currency,
+      amount: numAmount,
+      currency: finalCurrency,
       qrString: invoice.qrString,
       deeplinks: invoice.deeplinks,
       token: capturedToken,
       clientId: capturedClientId,
       deviceId: capturedDeviceId,
+      signature,
+      createdAt,
       remainingDaily: rateCheck.remaining,
       maxDaily: MAX_DAILY_CHECKOUTS,
       status: 'PENDING',

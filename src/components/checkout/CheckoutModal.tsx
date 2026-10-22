@@ -40,6 +40,8 @@ interface InvoiceData {
   token?: string;
   clientId?: string;
   deviceId?: string;
+  signature?: string;
+  createdAt?: number;
   remainingDaily?: number;
 }
 
@@ -144,7 +146,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     }
   }, [currency, user?.uid]);
 
-  // Check transaction status once
+  // Check transaction status once via pay-helper endpoint
   const checkStatusOnce = useCallback(async (tranId: string) => {
     try {
       const res = await fetch('/api/check-status', {
@@ -156,6 +158,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           deviceId: invoice?.deviceId,
           clientId: invoice?.clientId,
           userId: user?.uid,
+          signature: invoice?.signature,
+          createdAt: invoice?.createdAt,
         }),
       });
       const data = await res.json();
@@ -177,7 +181,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       console.warn('[CheckoutModal] Check error:', e);
     }
     return false;
-  }, [activateLifetimeVIP, currency, invoice?.clientId, invoice?.deviceId, invoice?.token, user?.uid]);
+  }, [activateLifetimeVIP, currency, fixedAmount, invoice?.clientId, invoice?.createdAt, invoice?.deviceId, invoice?.signature, invoice?.token, user?.uid]);
 
   const handleManualVerify = async () => {
     if (!invoice?.tranId || checkingManual) return;
@@ -186,46 +190,24 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     try {
       const paid = await checkStatusOnce(invoice.tranId);
       if (!paid) {
-        setManualNotice('មិនទាន់ទទួលបានការបញ្ជាក់ពី ABA នៅឡើយទេ។ ប្រសិនបើអ្នកបានផ្ទេររួចហើយ សូមរង់ចាំប្រហែល ៣-៥ វិនាទី រួចចុចផ្ទៀងផ្ទាត់ម្តងទៀត!');
+        setManualNotice('មិនទាន់ទទួលបានការបញ្ជាក់ពី ABA នៅឡើយទេ។ ប្រសិនបើអ្នកបានផ្ទេររួចហើយ សូមរង់ចាំប្រហែល ៣ វិនាទី ប្រព័ន្ធនឹងពិនិត្យស្វ័យប្រវត្ត!');
       }
     } finally {
       setCheckingManual(false);
     }
   };
 
-  // Polling loop implementing behavioral cadence
+  // Polling loop strictly every 3 seconds (3000ms) cadence as requested by user
   const scheduleNextPoll = useCallback(() => {
     if (status !== 'PENDING' || !invoice?.tranId) return;
 
-    const elapsedSec = (Date.now() - startTimeRef.current) / 1000;
-    let delay = 3500;
-
-    // Behavioral cadence:
-    // 0-20s: User is opening phone/camera (silent preparation, longer interval)
-    // 20-50s: Active PIN / Biometric confirmation window (query every 3.0s)
-    // 50-80s: Moderate hesitation (query every 6.0s)
-    // 80s+: Query every 8.0s
-    if (isDeeplinkClickedRef.current) {
-      delay = elapsedSec < 20 ? 4000 : 3000;
-    } else if (elapsedSec < 15) {
-      delay = Math.max(1000, (15 - elapsedSec) * 1000);
-    } else if (elapsedSec < 50) {
-      delay = 3000;
-    } else if (elapsedSec < 80) {
-      delay = 5500;
-    } else {
-      delay = 7500;
-    }
-
-    // Add jitter
-    delay += Math.floor(Math.random() * 600) - 300;
-
     pollerRef.current = window.setTimeout(async () => {
+      if (status !== 'PENDING' || !invoice?.tranId) return;
       const paid = await checkStatusOnce(invoice.tranId);
       if (!paid && status === 'PENDING') {
         scheduleNextPoll();
       }
-    }, delay);
+    }, 3000); // Fixed 3-second interval
   }, [status, invoice?.tranId, checkStatusOnce]);
 
   // Instant check when returning to tab from banking app
@@ -485,6 +467,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         <Clock className="w-3.5 h-3.5 text-indigo-500" />
                         <span>{Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}</span>
                       </div>
+                    </div>
+
+                    {/* 3-Second Active Status Polling Badge via pay-helper */}
+                    <div className="mt-2.5 flex items-center justify-center gap-2 w-full py-1.5 px-3 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200/60 dark:border-indigo-800/40 text-[11px] font-semibold text-indigo-700 dark:text-indigo-300">
+                      <RotateCw className="w-3 h-3 text-indigo-500 animate-spin" />
+                      <span>កំពុងពិនិត្យស្ថានភាពរៀងរាល់ ៣ វិនាទី (pay-helper)</span>
                     </div>
                   </>
                 ) : status === 'EXPIRED' ? (

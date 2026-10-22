@@ -17,6 +17,7 @@ import {
   Cloud,
   FileCode2,
   BookmarkCheck,
+  Lock,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { AppContext } from '../context/AppContext';
@@ -26,25 +27,25 @@ type QRType = 'URL' | 'TEXT' | 'WIFI' | 'PHONE' | 'EMAIL' | 'VCARD';
 type CenterIconType = 'NONE' | 'CROWN' | 'WIFI' | 'LINK' | 'PHONE' | 'MAIL';
 
 const PRESET_THEMES = [
-  { id: 'classic', label: 'Classic Noir', fg: '#0f172a', bg: '#ffffff' },
-  { id: 'indigo', label: 'Royal Indigo', fg: '#4f46e5', bg: '#f8fafc' },
-  { id: 'gold', label: 'Imperial Gold', fg: '#b45309', bg: '#fffbeb' },
-  { id: 'emerald', label: 'Cyber Emerald', fg: '#059669', bg: '#f0fdf4' },
-  { id: 'crimson', label: 'Velvet Ruby', fg: '#e11d48', bg: '#fff1f2' },
-  { id: 'midnight', label: 'Neon Cyan', fg: '#0284c7', bg: '#f0f9ff' },
+  { id: 'classic', label: 'Classic Noir', fg: '#0f172a', bg: '#ffffff', vip: false },
+  { id: 'indigo', label: 'Royal Indigo', fg: '#4f46e5', bg: '#f8fafc', vip: true },
+  { id: 'gold', label: 'Imperial Gold', fg: '#b45309', bg: '#fffbeb', vip: true },
+  { id: 'emerald', label: 'Cyber Emerald', fg: '#059669', bg: '#f0fdf4', vip: true },
+  { id: 'crimson', label: 'Velvet Ruby', fg: '#e11d48', bg: '#fff1f2', vip: true },
+  { id: 'midnight', label: 'Neon Cyan', fg: '#0284c7', bg: '#f0f9ff', vip: true },
 ];
 
 const FRAME_OPTIONS = [
-  { id: '', label: 'គ្មាន Frame' },
-  { id: 'SCAN ME', label: 'SCAN ME' },
-  { id: 'CONNECT WI-FI', label: 'CONNECT WI-FI' },
-  { id: 'VISIT WEBSITE', label: 'VISIT WEBSITE' },
-  { id: 'CONTACT INFO', label: 'CONTACT INFO' },
+  { id: '', label: 'គ្មាន Frame (Standard)', vip: false },
+  { id: 'SCAN ME', label: 'SCAN ME', vip: true },
+  { id: 'CONNECT WI-FI', label: 'CONNECT WI-FI', vip: true },
+  { id: 'VISIT WEBSITE', label: 'VISIT WEBSITE', vip: true },
+  { id: 'CONTACT INFO', label: 'CONTACT INFO', vip: true },
 ];
 
 export const GeneratorPage: React.FC = () => {
-  const { isLifetime } = useAuth();
-  const { addToHistory, showToast } = useContext(AppContext);
+  const { user, isLifetime } = useAuth();
+  const { addToHistory, showToast, history } = useContext(AppContext);
   const navigate = useNavigate();
 
   const [type, setType] = useState<QRType>('URL');
@@ -72,6 +73,74 @@ export const GeneratorPage: React.FC = () => {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // Strictly enforce VIP paywall: non-VIP users cannot retain VIP styling in state
+  useEffect(() => {
+    if (!isLifetime) {
+      if (centerIcon !== 'NONE') setCenterIcon('NONE');
+      if (frameText !== '') setFrameText('');
+      if (fgColor !== '#0f172a' || bgColor !== '#ffffff') {
+        setFgColor('#0f172a');
+        setBgColor('#ffffff');
+      }
+      if (qrSize > 400) setQrSize(300);
+    }
+  }, [isLifetime]);
+
+  const handleSelectTheme = (theme: typeof PRESET_THEMES[0]) => {
+    if (theme.vip && !isLifetime) {
+      showToast('មុខងារ Designer Themes សម្រាប់សមាជិក Lifetime VIP ប៉ុណ្ណោះ', 'info');
+      navigate('/upgrade');
+      return;
+    }
+    setFgColor(theme.fg);
+    setBgColor(theme.bg);
+  };
+
+  const handleSelectCenterIcon = (iconId: CenterIconType) => {
+    if (iconId !== 'NONE' && !isLifetime) {
+      showToast('មុខងារ Center Logo Badge សម្រាប់សមាជិក Lifetime VIP ប៉ុណ្ណោះ', 'info');
+      navigate('/upgrade');
+      return;
+    }
+    setCenterIcon(iconId);
+  };
+
+  const handleSelectFrameText = (fId: string) => {
+    if (fId !== '' && !isLifetime) {
+      showToast('មុខងារ Action Frame Banner សម្រាប់សមាជិក Lifetime VIP ប៉ុណ្ណោះ', 'info');
+      navigate('/upgrade');
+      return;
+    }
+    setFrameText(fId);
+  };
+
+  const handleCustomFgColor = (val: string) => {
+    if (!isLifetime) {
+      showToast('មុខងារកែប្រែពណ៌កូដផ្ទាល់ខ្លួន សម្រាប់សមាជិក Lifetime VIP ប៉ុណ្ណោះ', 'info');
+      navigate('/upgrade');
+      return;
+    }
+    setFgColor(val);
+  };
+
+  const handleCustomBgColor = (val: string) => {
+    if (!isLifetime) {
+      showToast('មុខងារកែប្រែពណ៌ផ្ទៃក្រោយ សម្រាប់សមាជិក Lifetime VIP ប៉ុណ្ណោះ', 'info');
+      navigate('/upgrade');
+      return;
+    }
+    setBgColor(val);
+  };
+
+  const handleSelectResolution = (size: number) => {
+    if (size > 400 && !isLifetime) {
+      showToast('ទំហំ HD (512px) និង Ultra HD (1024px) សម្រាប់សមាជិក Lifetime VIP ប៉ុណ្ណោះ', 'info');
+      navigate('/upgrade');
+      return;
+    }
+    setQrSize(size);
+  };
 
   // Compute final payload
   const getPayload = (): string => {
@@ -221,6 +290,9 @@ export const GeneratorPage: React.FC = () => {
 
   const handleDownloadPNG = () => {
     if (!qrDataUrl) return;
+    if (!isLifetime && (centerIcon !== 'NONE' || frameText !== '' || qrSize > 400 || fgColor !== '#0f172a')) {
+      showToast('ទាញយកស្តង់ដារ B&W (មុខងារ Custom Style & Logo សម្រាប់តែសមាជិក VIP)', 'info');
+    }
     const a = document.createElement('a');
     a.href = qrDataUrl;
     a.download = `qrcode_${type.toLowerCase()}_${Date.now()}.png`;
@@ -282,6 +354,18 @@ export const GeneratorPage: React.FC = () => {
   const handleSaveToCloud = async () => {
     const payload = getPayload();
     if (!payload.trim()) return;
+
+    if (!user) {
+      showToast('សូមចូលប្រើប្រាស់គណនីជាមុនសិនដើម្បីរក្សាទុកក្នុង Cloud', 'info');
+      navigate('/auth?redirect=/generator');
+      return;
+    }
+
+    if (!isLifetime && history.length >= 20) {
+      showToast('គណនី Free អាចរក្សាទុកបានត្រឹម ២០ កូដប៉ុណ្ណោះ។ សូម Upgrade VIP ដើម្បីរក្សាទុកគ្មានដែនកំណត់!', 'info');
+      navigate('/upgrade');
+      return;
+    }
 
     try {
       await addToHistory({
@@ -552,34 +636,43 @@ export const GeneratorPage: React.FC = () => {
 
           {/* Designer Presets & Pro Themes */}
           <div className="p-5 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-sm space-y-3">
-            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-              <Sparkles className="w-4 h-4 text-amber-500" />
-              Designer Themes (ស្ទីលពណ៌ពិសេស)
-            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                Designer Themes (ស្ទីលពណ៌ពិសេស)
+              </span>
+              {!isLifetime && (
+                <span className="text-[10px] font-bold text-amber-500 bg-amber-500/15 px-2 py-0.5 rounded-full border border-amber-500/20 flex items-center gap-1">
+                  <Crown className="w-3 h-3" />
+                  VIP ONLY
+                </span>
+              )}
+            </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {PRESET_THEMES.map((theme) => {
                 const isSelected = fgColor === theme.fg && bgColor === theme.bg;
+                const isLocked = theme.vip && !isLifetime;
                 return (
                   <button
                     key={theme.id}
                     type="button"
-                    onClick={() => {
-                      setFgColor(theme.fg);
-                      setBgColor(theme.bg);
-                    }}
-                    className={`flex items-center gap-2.5 p-2 rounded-xl border text-xs font-medium transition-all ${
+                    onClick={() => handleSelectTheme(theme)}
+                    className={`flex items-center justify-between p-2 rounded-xl border text-xs font-medium transition-all ${
                       isSelected
                         ? 'border-indigo-500 ring-2 ring-indigo-500/20 bg-indigo-50/50 dark:bg-indigo-950/30'
                         : 'border-slate-200/80 dark:border-white/10 hover:border-slate-300'
-                    }`}
+                    } ${isLocked ? 'opacity-75 hover:opacity-100' : ''}`}
                   >
-                    <div
-                      className="w-5 h-5 rounded-md border border-slate-300/40 shadow-xs shrink-0"
-                      style={{ backgroundColor: theme.fg }}
-                    />
-                    <span className="truncate text-[11px] text-slate-700 dark:text-slate-300">
-                      {theme.label}
-                    </span>
+                    <div className="flex items-center gap-2 truncate">
+                      <div
+                        className="w-5 h-5 rounded-md border border-slate-300/40 shadow-xs shrink-0"
+                        style={{ backgroundColor: theme.fg }}
+                      />
+                      <span className="truncate text-[11px] text-slate-700 dark:text-slate-300">
+                        {theme.label}
+                      </span>
+                    </div>
+                    {isLocked && <Lock className="w-3 h-3 text-amber-500 shrink-0 ml-1" />}
                   </button>
                 );
               })}
@@ -593,39 +686,43 @@ export const GeneratorPage: React.FC = () => {
                 <Crown className="w-4 h-4 text-amber-500" />
                 Center Logo & Action Frame (VIP)
               </span>
-              <span className="text-[10px] font-bold text-amber-500 bg-amber-500/15 px-2 py-0.5 rounded-full border border-amber-500/20">
-                PRO FEATURE
+              <span className="text-[10px] font-bold text-amber-500 bg-amber-500/15 px-2 py-0.5 rounded-full border border-amber-500/20 flex items-center gap-1">
+                <Crown className="w-3 h-3" />
+                VIP EXCLUSIVE
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-[11px] font-medium text-slate-500 mb-1.5">
-                  Logo កណ្តាល (Center Badge)
+                <label className="block text-[11px] font-medium text-slate-500 mb-1.5 flex items-center justify-between">
+                  <span>Logo កណ្តាល (Center Badge)</span>
+                  {!isLifetime && <span className="text-[10px] text-amber-500 font-bold">Lock for Free</span>}
                 </label>
                 <div className="grid grid-cols-3 gap-1.5">
                   {[
-                    { id: 'NONE', label: 'None', Icon: null },
-                    { id: 'CROWN', label: 'VIP Emblem', Icon: Crown },
-                    { id: 'WIFI', label: 'Wi-Fi', Icon: Wifi },
-                    { id: 'LINK', label: 'Link', Icon: LinkIcon },
-                    { id: 'PHONE', label: 'Phone', Icon: Phone },
-                    { id: 'MAIL', label: 'Email', Icon: Mail },
+                    { id: 'NONE', label: 'None', Icon: null, vip: false },
+                    { id: 'CROWN', label: 'VIP Emblem', Icon: Crown, vip: true },
+                    { id: 'WIFI', label: 'Wi-Fi', Icon: Wifi, vip: true },
+                    { id: 'LINK', label: 'Link', Icon: LinkIcon, vip: true },
+                    { id: 'PHONE', label: 'Phone', Icon: Phone, vip: true },
+                    { id: 'MAIL', label: 'Email', Icon: Mail, vip: true },
                   ].map((ci) => {
                     const IconComp = ci.Icon;
+                    const isLocked = ci.vip && !isLifetime;
                     return (
                       <button
                         key={ci.id}
                         type="button"
-                        onClick={() => setCenterIcon(ci.id as CenterIconType)}
+                        onClick={() => handleSelectCenterIcon(ci.id as CenterIconType)}
                         className={`py-1.5 px-2 rounded-xl border text-[11px] font-medium transition-all flex items-center justify-center gap-1.5 ${
                           centerIcon === ci.id
                             ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-bold'
                             : 'border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:border-slate-300'
-                        }`}
+                        } ${isLocked ? 'opacity-80' : ''}`}
                       >
                         {IconComp ? <IconComp className="w-3.5 h-3.5 shrink-0" /> : <span className="text-slate-400">—</span>}
                         <span className="truncate">{ci.label}</span>
+                        {isLocked && <Lock className="w-2.5 h-2.5 text-amber-500 ml-0.5" />}
                       </button>
                     );
                   })}
@@ -633,22 +730,23 @@ export const GeneratorPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-[11px] font-medium text-slate-500 mb-1.5">
-                  Action Frame Banner
+                <label className="block text-[11px] font-medium text-slate-500 mb-1.5 flex items-center justify-between">
+                  <span>Action Frame Banner</span>
+                  {!isLifetime && <span className="text-[10px] text-amber-500 font-bold">VIP Only</span>}
                 </label>
                 <select
                   value={frameText}
-                  onChange={(e) => setFrameText(e.target.value)}
+                  onChange={(e) => handleSelectFrameText(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   {FRAME_OPTIONS.map((f) => (
                     <option key={f.id} value={f.id}>
-                      {f.label}
+                      {f.label} {f.vip && !isLifetime ? '🔒 (VIP)' : ''}
                     </option>
                   ))}
                 </select>
                 <p className="text-[10px] text-slate-400 mt-1">
-                  បន្ថែមបន្ទះ Frame ខាងក្រោម QR ងាយស្រួលមើល
+                  បន្ថែមបន្ទះ Frame ខាងក្រោម QR ងាយស្រួលមើល {!isLifetime && '(សម្រាប់ VIP)'}
                 </p>
               </div>
             </div>
@@ -656,65 +754,80 @@ export const GeneratorPage: React.FC = () => {
 
           {/* Color & Size Customization */}
           <div className="p-5 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-sm space-y-4">
-            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-              <Palette className="w-4 h-4 text-indigo-500" />
-              កែប្រែពណ៌ & ទំហំលម្អិត (Custom Colors)
-            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                <Palette className="w-4 h-4 text-indigo-500" />
+                កែប្រែពណ៌ & ទំហំលម្អិត (Custom Colors)
+              </span>
+              {!isLifetime && (
+                <span className="text-[10px] font-bold text-amber-500 bg-amber-500/15 px-2 py-0.5 rounded-full border border-amber-500/20 flex items-center gap-1">
+                  <Crown className="w-3 h-3" />
+                  VIP Feature
+                </span>
+              )}
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="block text-[11px] font-medium text-slate-500 mb-1">
-                  ពណ៌កូដ (QR Color)
+                <label className="block text-[11px] font-medium text-slate-500 mb-1 flex items-center justify-between">
+                  <span>ពណ៌កូដ (QR Color)</span>
+                  {!isLifetime && <Lock className="w-3 h-3 text-amber-500" />}
                 </label>
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
                     value={fgColor}
-                    onChange={(e) => setFgColor(e.target.value)}
-                    className="w-8 h-8 rounded-lg cursor-pointer border-0 bg-transparent p-0"
+                    disabled={!isLifetime}
+                    onChange={(e) => handleCustomFgColor(e.target.value)}
+                    className="w-8 h-8 rounded-lg cursor-pointer border-0 bg-transparent p-0 disabled:opacity-50"
                   />
                   <input
                     type="text"
                     value={fgColor}
-                    onChange={(e) => setFgColor(e.target.value)}
-                    className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-white/10 rounded-lg text-xs font-mono"
+                    disabled={!isLifetime}
+                    onChange={(e) => handleCustomFgColor(e.target.value)}
+                    className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-white/10 rounded-lg text-xs font-mono disabled:opacity-50"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] font-medium text-slate-500 mb-1">
-                  ពណ៌ផ្ទៃក្រោយ (Background)
+                <label className="block text-[11px] font-medium text-slate-500 mb-1 flex items-center justify-between">
+                  <span>ពណ៌ផ្ទៃក្រោយ (Background)</span>
+                  {!isLifetime && <Lock className="w-3 h-3 text-amber-500" />}
                 </label>
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
                     value={bgColor}
-                    onChange={(e) => setBgColor(e.target.value)}
-                    className="w-8 h-8 rounded-lg cursor-pointer border-0 bg-transparent p-0"
+                    disabled={!isLifetime}
+                    onChange={(e) => handleCustomBgColor(e.target.value)}
+                    className="w-8 h-8 rounded-lg cursor-pointer border-0 bg-transparent p-0 disabled:opacity-50"
                   />
                   <input
                     type="text"
                     value={bgColor}
-                    onChange={(e) => setBgColor(e.target.value)}
-                    className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-white/10 rounded-lg text-xs font-mono"
+                    disabled={!isLifetime}
+                    onChange={(e) => handleCustomBgColor(e.target.value)}
+                    className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-white/10 rounded-lg text-xs font-mono disabled:opacity-50"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] font-medium text-slate-500 mb-1">
-                  ទំហំ (Resolution)
+                <label className="block text-[11px] font-medium text-slate-500 mb-1 flex items-center justify-between">
+                  <span>ទំហំ (Resolution)</span>
+                  {!isLifetime && <span className="text-[10px] text-amber-500">HD = VIP</span>}
                 </label>
                 <select
                   value={qrSize}
-                  onChange={(e) => setQrSize(Number(e.target.value))}
+                  onChange={(e) => handleSelectResolution(Number(e.target.value))}
                   className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-white/10 rounded-lg text-xs font-medium"
                 >
-                  <option value={300}>300 x 300 px (មធ្យម)</option>
-                  <option value={400}>400 x 400 px (ធំច្បាស់)</option>
-                  <option value={512}>512 x 512 px (HD)</option>
-                  <option value={1024}>1024 x 1024 px (Ultra HD)</option>
+                  <option value={300}>300 x 300 px (មធ្យម - Free)</option>
+                  <option value={400}>400 x 400 px (ធំច្បាស់ - Free)</option>
+                  <option value={512}>512 x 512 px (HD {!isLifetime ? '🔒 VIP' : ''})</option>
+                  <option value={1024}>1024 x 1024 px (Ultra HD {!isLifetime ? '🔒 VIP' : ''})</option>
                 </select>
               </div>
             </div>

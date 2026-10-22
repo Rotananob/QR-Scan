@@ -36,14 +36,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Initialize cached lifetime state from localStorage for zero-lag UI loading
-  const [isLifetime, setIsLifetime] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem(CACHE_KEY_LIFETIME) === 'true';
-    } catch {
-      return false;
-    }
-  });
+  // VIP membership state - strictly validated against user authentication and cloud profile
+  const [isLifetime, setIsLifetime] = useState<boolean>(false);
 
   const syncProfile = useCallback(async (firebaseUser: User | null) => {
     if (!firebaseUser) {
@@ -59,9 +53,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const p = await getUserProfile(firebaseUser.uid);
       if (p) {
         setProfile(p);
-        setIsLifetime(p.isLifetime);
+        const verifiedVip = Boolean(p.isLifetime);
+        setIsLifetime(verifiedVip);
         try {
-          localStorage.setItem(CACHE_KEY_LIFETIME, p.isLifetime ? 'true' : 'false');
+          if (verifiedVip) {
+            localStorage.setItem(`${CACHE_KEY_LIFETIME}_${firebaseUser.uid}`, 'true');
+          } else {
+            localStorage.removeItem(`${CACHE_KEY_LIFETIME}_${firebaseUser.uid}`);
+            localStorage.removeItem(CACHE_KEY_LIFETIME);
+          }
         } catch {}
       } else {
         // Fallback default profile
@@ -73,9 +73,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           isLifetime: false,
         };
         setProfile(defaultProfile);
+        setIsLifetime(false);
       }
     } catch (e) {
       console.warn('[AuthContext] syncProfile error:', e);
+      setIsLifetime(false);
     }
   }, []);
 
@@ -137,12 +139,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const verifiedIsLifetime = Boolean(user && isLifetime && profile?.isLifetime);
+
   return (
     <AuthContext.Provider
       value={{
         user,
         profile,
-        isLifetime,
+        isLifetime: verifiedIsLifetime,
         loading,
         signInWithEmail,
         signUpWithEmail,
