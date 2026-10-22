@@ -1,11 +1,12 @@
 /**
  * Production Serverless Handler for Checking Transaction Settlement Status
- * Compatible with Vercel Serverless Functions (ESM Node.js runtime)
+ * Compatible with Vercel Serverless Functions & Local Vite Dev Server
  * 
  * Security Features:
  * - Anti-tampering HMAC payment signature verification
  * - Anti-replay attack check in Firestore
  * - Rate limiting (120 checks/minute per IP)
+ * - Cloudflare WAF bypass with session cookie retention (__cf_bm) across status checks
  * - Strict $3.00 USD settlement validation via pay-helper KhqrGateway
  */
 
@@ -17,6 +18,50 @@ import { checkStatusRateLimit, verifyPaymentSession, isTransactionClaimedByOther
 
 const CHECKOUT_URL = 'https://link.payway.com.kh/ABAPAYbR5506511';
 
+// Global Cloudflare session cookie cache for status verification
+let globalCfCookieJar = '';
+
+function mergeCookies(existingJar, res) {
+  const setCookies = res.headers.getSetCookie ? res.headers.getSetCookie() : [res.headers.get('set-cookie') || ''];
+  const newCookies = setCookies.map((c) => (c ? c.split(';')[0].trim() : '')).filter(Boolean);
+  if (newCookies.length === 0) return existingJar;
+
+  const cookieMap = new Map();
+  if (existingJar) {
+    existingJar.split(';').forEach((pair) => {
+      const [k, v] = pair.trim().split('=');
+      if (k && v) cookieMap.set(k, v);
+    });
+  }
+  newCookies.forEach((pair) => {
+    const [k, v] = pair.split('=');
+    if (k && v) cookieMap.set(k, v);
+  });
+  return Array.from(cookieMap.entries()).map(([k, v]) => `${k}=${v}`).join('; ');
+}
+
+// Custom Fetch with Cloudflare __cf_bm Cookie Retention & Origin Routing
+const cloudflareSafeFetch = async (url, opts = {}) => {
+  let targetUrl = url;
+  if (targetUrl.includes('pwapp.ababank.com/api/pw-app/')) {
+    targetUrl = targetUrl.replace('https://pwapp.ababank.com/api/pw-app/', 'https://link.payway.com.kh/api/pw-app/');
+  }
+
+  const headers = { ...(opts.headers || {}) };
+  headers['Origin'] = 'https://link.payway.com.kh';
+  headers['Referer'] = CHECKOUT_URL;
+  headers['User-Agent'] =
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+
+  if (globalCfCookieJar) {
+    headers['Cookie'] = globalCfCookieJar;
+  }
+
+  const res = await fetch(targetUrl, { ...opts, headers });
+  globalCfCookieJar = mergeCookies(globalCfCookieJar, res);
+  return res;
+};
+
 let gatewayInstance = null;
 function getGateway() {
   if (!gatewayInstance) {
@@ -24,6 +69,7 @@ function getGateway() {
       checkoutUrl: CHECKOUT_URL,
       sessionCacheTtlMs: 300000,
       timeoutMs: 10000,
+      customFetch: cloudflareSafeFetch,
     });
   }
   return gatewayInstance;
@@ -158,7 +204,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // 4. Direct ABA PayWay check-payment-status query if session credentials exist
+    // 4. Direct ABA PayWay check-payment-status query through link.payway.com.kh with __cf_bm cookie
     const activeToken = token || cached?.token;
     const activeClientId = clientId || cached?.clientId;
     const activeDeviceId = deviceId || cached?.deviceId;
@@ -178,7 +224,7 @@ export default async function handler(req, res) {
           Origin: 'https://link.payway.com.kh',
           Referer: CHECKOUT_URL,
           'User-Agent':
-            'Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.6778.200 Mobile Safari/537.36',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
           token: activeToken,
           ...(activeCookie ? { Cookie: activeCookie } : {}),
         };
@@ -191,7 +237,7 @@ export default async function handler(req, res) {
         };
 
         const checkRes = await fetch(
-          'https://pwapp.ababank.com/api/pw-app/v1/payment-link/check-payment-status',
+          'https://link.payway.com.kh/api/pw-app/v1/payment-link/check-payment-status',
           {
             method: 'POST',
             headers,
@@ -225,35 +271,45 @@ export default async function handler(req, res) {
       }
     }
 
-    // 5. Fallback to KhqrGateway from pay-helper package
-    const gw = getGateway();
-    const result = await gw.checkStatus({
-      tranId: tranIdStr,
-      token: activeToken,
-      clientId: activeClientId,
-      checkoutUrl: CHECKOUT_URL,
-    });
-
-    if (result.status === 'PAID') {
-      await activateVipInFirestore(effectiveUserId, tranIdStr, 3.00, 'USD');
-      return res.status(200).json({
-        status: 'PAID',
-        tranId: result.tranId || tranIdStr,
-        rawStatus: result.rawStatus,
-        verified: true,
+    // 5. Fallback query to KhqrGateway from pay-helper package
+    try {
+      const gw = getGateway();
+      const result = await gw.checkStatus({
+        tranId: tranIdStr,
+        checkoutUrl: CHECKOUT_URL,
+        clientId: activeClientId,
+        token: activeToken,
       });
+
+      if (result.status === 'PAID') {
+        await activateVipInFirestore(
+          effectiveUserId,
+          tranIdStr,
+          cached?.amount || 3.00,
+          cached?.currency || 'USD'
+        );
+        return res.status(200).json({
+          status: 'PAID',
+          tranId: tranIdStr,
+          rawStatus: result.rawStatus || 'approved',
+          verified: true,
+        });
+      }
+    } catch (gwErr) {
+      console.warn(`[CheckStatus] KhqrGateway check warning:`, gwErr.message);
     }
 
+    // Return current pending status
     return res.status(200).json({
       status: 'PENDING',
-      tranId: result.tranId || tranIdStr,
-      rawStatus: result.rawStatus,
+      tranId: tranIdStr,
+      verified: false,
     });
   } catch (err) {
-    console.error('[API Check-Status Error]:', err);
-    return res.status(200).json({
+    console.error('[CheckStatus Handler Error]:', err);
+    return res.status(500).json({
+      error: err.message || 'Internal error verifying payment status.',
       status: 'PENDING',
-      error: err.message,
     });
   }
 }

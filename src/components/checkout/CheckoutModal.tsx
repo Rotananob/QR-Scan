@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import QRCode from 'qrcode';
 import {
   X,
@@ -52,6 +53,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   currency = 'USD',
 }) => {
   const { user, isLifetime, activateLifetimeVIP } = useAuth();
+  const navigate = useNavigate();
   
   const fixedAmount = 3.00;
   const [loading, setLoading] = useState(false);
@@ -59,7 +61,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [invoice, setInvoice] = useState<InvoiceData | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState<number>(180); // 3 minutes countdown
-  const [status, setStatus] = useState<'IDLE' | 'GENERATING' | 'PENDING' | 'PAID' | 'EXPIRED'>('IDLE');
+  const [status, setStatus] = useState<'IDLE' | 'GENERATING' | 'PENDING' | 'PAID' | 'EXPIRED' | 'ERROR'>('IDLE');
   const [showConfetti, setShowConfetti] = useState(false);
   const [quota, setQuota] = useState<DailyQuotaInfo>(getDailyQuotaInfo());
   const [checkingManual, setCheckingManual] = useState(false);
@@ -70,8 +72,22 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const startTimeRef = useRef<number>(0);
   const isDeeplinkClickedRef = useRef(false);
 
+  // Requirement: If user is not authenticated and checkout opens, immediately redirect to login!
+  useEffect(() => {
+    if (isOpen && !user) {
+      onClose();
+      navigate('/auth?redirect=/upgrade');
+    }
+  }, [isOpen, user, navigate, onClose]);
+
   // Generate live registered invoice via API
   const handleGenerateInvoice = useCallback(async () => {
+    if (!user) {
+      onClose();
+      navigate('/auth?redirect=/upgrade');
+      return;
+    }
+
     // 1. Strict rate limit check: Max 20 times per day
     if (!canGenerateCheckoutQR()) {
       setError('អ្នកបានប្រើប្រាស់អស់កូតា ២០ដងក្នុងថ្ងៃនេះហើយ (Daily limit of 20 QR generations reached). សូមព្យាយាមម្ដងទៀតនៅថ្ងៃស្អែក!');
@@ -97,6 +113,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       const data = await res.json();
 
       if (!res.ok || !data.success) {
+        if (res.status === 401 || data.code === 'UNAUTHENTICATED') {
+          onClose();
+          navigate('/auth?redirect=/upgrade');
+          return;
+        }
         throw new Error(data.error || 'Failed to generate live checkout invoice.');
       }
 
@@ -140,11 +161,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     } catch (err: any) {
       console.error('[CheckoutModal] Generation failed:', err);
       setError(err.message || 'Cannot connect to payment gateway. Please try again.');
-      setStatus('IDLE');
+      setStatus('ERROR');
     } finally {
       setLoading(false);
     }
-  }, [currency, user?.uid]);
+  }, [currency, user, navigate, onClose]);
 
   // Check transaction status once via pay-helper endpoint
   const checkStatusOnce = useCallback(async (tranId: string) => {
@@ -475,6 +496,25 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       <span>កំពុងពិនិត្យស្ថានភាពរៀងរាល់ ៣ វិនាទី (pay-helper)</span>
                     </div>
                   </>
+                ) : status === 'ERROR' ? (
+                  <div className="w-64 h-64 flex flex-col items-center justify-center gap-3 text-center p-4">
+                    <AlertTriangle className="w-12 h-12 text-rose-500 animate-bounce" />
+                    <h5 className="font-bold text-slate-800 dark:text-white text-sm">
+                      មិនអាចភ្ជាប់ទៅកាន់ប្រព័ន្ធ ABA បានទេ
+                    </h5>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                      {error || 'សូមពិនិត្យមើលការតភ្ជាប់អ៊ីនធឺណិត ហើយព្យាយាមម្តងទៀត។'}
+                    </p>
+                    <button
+                      type="button"
+                      disabled={isExceeded}
+                      onClick={() => handleGenerateInvoice()}
+                      className="mt-2 px-5 py-2.5 text-xs font-bold rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 disabled:opacity-50 text-white flex items-center gap-2 shadow-md shadow-indigo-500/20 active:scale-95 transition-all"
+                    >
+                      <RotateCw className="w-3.5 h-3.5" />
+                      ព្យាយាមម្តងទៀត (Retry)
+                    </button>
+                  </div>
                 ) : status === 'EXPIRED' ? (
                   <div className="w-64 h-64 flex flex-col items-center justify-center gap-3 text-center p-4">
                     <Clock className="w-12 h-12 text-slate-400" />
