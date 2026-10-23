@@ -1,13 +1,13 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useEffect, useContext } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AppProvider, AppContext } from './context/AppContext';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { BottomNavigation } from './components/layout/BottomNavigation';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { ToastContainer } from './components/common/Toast';
 import { useIsDesktop } from './hooks/useMediaQuery';
-import { useContext } from 'react';
+import { trackVisitor } from './services/tracker';
 
 const ScannerPage = lazy(() => import('./pages/Scanner').then(m => ({ default: m.ScannerPage })));
 const HistoryPage = lazy(() => import('./pages/History').then(m => ({ default: m.HistoryPage })));
@@ -28,6 +28,14 @@ const PageSkeleton = () => (
 const AppShell: React.FC = () => {
   const isDesktop = useIsDesktop();
   const { toasts, dismissToast } = useContext(AppContext);
+  const { user, loading } = useAuth();
+
+  // Realtime visitor tracking to Telegram (once per session)
+  useEffect(() => {
+    if (!loading) {
+      trackVisitor(user);
+    }
+  }, [user, loading]);
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white overflow-hidden relative selection:bg-indigo-500/30">

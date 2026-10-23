@@ -15,6 +15,13 @@ import { buildBankDeeplinks } from 'pay-helper';
 import { invoiceStore } from './_invoiceStore.js';
 import { getFirebaseAdmin } from './_firebaseAdmin.js';
 import { signPaymentSession } from './_security.js';
+import {
+  sendTelegramAlert,
+  getClientIp,
+  getClientLocation,
+  parseDeviceDetails,
+  getCambodiaTimeString,
+} from './_telegram.js';
 
 const CHECKOUT_URL = 'https://link.payway.com.kh/ABAPAYbR5506511';
 const MAX_DAILY_CHECKOUTS = 20;
@@ -278,6 +285,34 @@ export default async function handler(req, res) {
     } catch (fsErr) {
       console.warn('[Checkout] Firestore invoice session persist warning:', fsErr.message);
     }
+
+    // Send Realtime Telegram Alert for VIP Checkout QR Generation
+    try {
+      const ip = getClientIp(req);
+      getClientLocation(ip, req).then((loc) => {
+        const device = parseDeviceDetails(req.headers['user-agent'], req.body?.clientData);
+        const time = getCambodiaTimeString();
+        const userDisplay = req.body?.userEmail
+          ? `${req.body.userName || 'User'} (${req.body.userEmail})`
+          : `User [UID: ${userId}]`;
+
+        const alertMsg = [
+          '💳 <b>LIFETIME VIP CHECKOUT QR INITIATED!</b>',
+          '━━━━━━━━━━━━━━━━━━',
+          `💵 <b>Amount:</b> $3.00 USD (~12,000 KHR)`,
+          `🧾 <b>Tran ID:</b> <code>${tranIdStr}</code>`,
+          `👤 <b>User:</b> ${userDisplay}`,
+          `🏦 <b>Gateway:</b> ABA PayWay / KHQR`,
+          `📱 <b>Device:</b> ${device.platform} (${device.display})`,
+          `📍 <b>Location:</b> ${loc.city}, ${loc.country} ${loc.flag}`,
+          `🌐 <b>IP Address:</b> <code>${loc.ip}</code>`,
+          `⏰ <b>Time:</b> ${time}`,
+          '━━━━━━━━━━━━━━━━━━',
+        ].join('\n');
+
+        sendTelegramAlert(alertMsg).catch(() => {});
+      }).catch(() => {});
+    } catch {}
 
     return res.status(200).json({
       success: true,

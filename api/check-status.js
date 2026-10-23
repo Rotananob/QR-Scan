@@ -15,6 +15,13 @@ import crypto from 'crypto';
 import { invoiceStore } from './_invoiceStore.js';
 import { getFirebaseAdmin } from './_firebaseAdmin.js';
 import { checkStatusRateLimit, verifyPaymentSession, isTransactionClaimedByOther } from './_security.js';
+import {
+  sendTelegramAlert,
+  getClientIp,
+  getClientLocation,
+  parseDeviceDetails,
+  getCambodiaTimeString,
+} from './_telegram.js';
 
 const CHECKOUT_URL = 'https://link.payway.com.kh/ABAPAYbR5506511';
 
@@ -258,6 +265,33 @@ export default async function handler(req, res) {
 
         if (isPaid) {
           await activateVipInFirestore(effectiveUserId, tranIdStr, 3.00, 'USD');
+
+          // Send Realtime Telegram Alert for Payment Success
+          try {
+            const ip = getClientIp(req);
+            getClientLocation(ip, req).then((loc) => {
+              const device = parseDeviceDetails(req.headers['user-agent'], req.body?.clientData);
+              const time = getCambodiaTimeString();
+
+              const alertMsg = [
+                '🎉 <b>PAYMENT SUCCESSFUL! (VIP ACTIVATED)</b>',
+                '━━━━━━━━━━━━━━━━━━',
+                `💰 <b>Amount Received:</b> $3.00 USD`,
+                `🧾 <b>Tran ID:</b> <code>${tranIdStr}</code>`,
+                `👤 <b>User ID:</b> <code>${effectiveUserId}</code>`,
+                `🏦 <b>Payment Method:</b> ABA PayWay / KHQR (Cross-Bank Settlement)`,
+                `👑 <b>Status:</b> Lifetime VIP Member Activated!`,
+                `📱 <b>Device:</b> ${device.platform} (${device.display})`,
+                `📍 <b>Location:</b> ${loc.city}, ${loc.country} ${loc.flag}`,
+                `🌐 <b>IP Address:</b> <code>${loc.ip}</code>`,
+                `⏰ <b>Time:</b> ${time}`,
+                '━━━━━━━━━━━━━━━━━━',
+              ].join('\n');
+
+              sendTelegramAlert(alertMsg).catch(() => {});
+            }).catch(() => {});
+          } catch {}
+
           return res.status(200).json({
             status: 'PAID',
             tranId: tranIdStr,

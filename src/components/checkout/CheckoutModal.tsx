@@ -21,6 +21,7 @@ import {
   type DailyQuotaInfo,
 } from '../../services/rateLimiter';
 import { Confetti } from '../common/Confetti';
+import { trackQrExpired } from '../../services/tracker';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -108,6 +109,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           amount: fixedAmount,
           currency,
           userId: user?.uid,
+          userEmail: user?.email,
+          userName: user?.displayName,
         }),
       });
 
@@ -329,6 +332,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         setTimeLeft((prev) => {
           if (prev <= 1) {
             setStatus('EXPIRED');
+            if (invoice?.tranId) {
+              trackQrExpired(invoice.tranId, user);
+            }
             try {
               localStorage.removeItem('qr_active_checkout_session');
             } catch {}

@@ -24,6 +24,7 @@ import { generateClientKhqr } from '../services/khqrBuilder';
 import { useAuth } from '../context/AuthContext';
 import { AppContext } from '../context/AppContext';
 import { useNavigate } from 'react-router-dom';
+import { trackQrGenerated } from '../services/tracker';
 
 type QRType = 'URL' | 'KHQR' | 'TEXT' | 'WIFI' | 'PHONE' | 'EMAIL' | 'VCARD';
 type CenterIconType = 'NONE' | 'CROWN' | 'WIFI' | 'LINK' | 'PHONE' | 'MAIL';
@@ -244,6 +245,7 @@ export const GeneratorPage: React.FC = () => {
         // If standard clean QR (no logo & no frame), use pristine ISO-compliant canvas directly
         if (centerIcon === 'NONE' && !frameText) {
           setQrDataUrl(canvas.toDataURL('image/png'));
+          trackQrGenerated(type, payload, user);
           return;
         }
 
@@ -320,6 +322,7 @@ export const GeneratorPage: React.FC = () => {
         }
 
         setQrDataUrl(finalCanvas.toDataURL('image/png'));
+        trackQrGenerated(type, payload, user);
       })
       .catch((err) => {
         console.error('[QR Generator error]:', err);
