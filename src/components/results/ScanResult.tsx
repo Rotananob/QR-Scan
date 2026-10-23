@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
   CheckCircle,
-  Shield,
-  ShieldOff,
+  ShieldAlert,
+  ShieldCheck,
   Copy,
   Eye,
   EyeOff,
@@ -13,15 +13,20 @@ import {
   Phone,
   MapPin,
   FileText,
+  Printer,
+  ExternalLink,
+  AlertTriangle,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ContentTypeBadge } from './ContentTypeBadge';
 import { ResultActions } from './ResultActions';
 import { KHQRAutoLaunchBanner } from './KHQRAutoLaunchBanner';
 import { KHQRBankModal } from './KHQRBankModal';
+import { KhqrStandeeModal } from '../standee/KhqrStandeeModal';
 import { detectKHQRBank } from '../../services/bankDeepLink';
 import { generateQRDataUrl } from '../../services/qrImage';
 import { copyToClipboard } from '../../services/share';
+import { analyzeUrlSafety, type SecurityAnalysisResult } from '../../services/securityShield';
 import type {
   QRResult,
   URLData,
@@ -58,13 +63,8 @@ export const ScanResult: React.FC<ScanResultProps> = ({
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
   const [bankModalOpen, setBankModalOpen] = useState(false);
-
-  const copyField = async (text: string, fieldName: string) => {
-    await copyToClipboard(text);
-    setCopiedField(fieldName);
-    setTimeout(() => setCopiedField(null), 2000);
-    onCopy();
-  };
+  const [standeeModalOpen, setStandeeModalOpen] = useState(false);
+  const [showPhishingOverride, setShowPhishingOverride] = useState(false);
 
   const urlData = result.parsed?.kind === 'url' ? (result.parsed as URLData) : null;
   const wifiData = result.parsed?.kind === 'wifi' ? (result.parsed as WifiData) : null;
@@ -72,6 +72,16 @@ export const ScanResult: React.FC<ScanResultProps> = ({
   const barcodeData = result.parsed?.kind === 'barcode' ? (result.parsed as BarcodeData) : null;
   const vcardData = result.parsed?.kind === 'vcard' ? (result.parsed as VCardData) : null;
   const socialData = result.parsed?.kind === 'social' ? (result.parsed as SocialData) : null;
+
+  const isUrlContent = Boolean(urlData || result.type === 'URL' || /^https?:\/\//i.test(result.raw));
+  const securityReport: SecurityAnalysisResult | null = isUrlContent ? analyzeUrlSafety(result.raw) : null;
+
+  const copyField = async (text: string, fieldName: string) => {
+    await copyToClipboard(text);
+    setCopiedField(fieldName);
+    setTimeout(() => setCopiedField(null), 2000);
+    onCopy();
+  };
 
   const detectedBank = khqrData ? detectKHQRBank(khqrData.bakongAccountId, khqrData.acquiringBank) : null;
 
@@ -122,6 +132,17 @@ export const ScanResult: React.FC<ScanResultProps> = ({
               onClose={() => setBankModalOpen(false)}
               khqr={khqrData}
               onCopySuccess={onCopy}
+            />
+            <KhqrStandeeModal
+              open={standeeModalOpen}
+              onClose={() => setStandeeModalOpen(false)}
+              qrData={{
+                qrRaw: result.raw,
+                merchantName: khqrData.merchantName,
+                bankAccount: khqrData.bakongAccountId,
+                amount: khqrData.amount ? String(khqrData.amount) : undefined,
+                currency: khqrData.currency,
+              }}
             />
           </>
         )}
@@ -213,6 +234,16 @@ export const ScanResult: React.FC<ScanResultProps> = ({
                 </div>
               )}
             </div>
+
+            {/* Merchant Standee Table Tent Action */}
+            <button
+              type="button"
+              onClick={() => setStandeeModalOpen(true)}
+              className="w-full mt-2 py-2 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/40 font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-all active:scale-[0.98]"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>{t('standee.createButton', '🪧 បោះពុម្ពស្លាក Standee តុ (Print Merchant Standee)')}</span>
+            </button>
           </div>
         )}
 
@@ -318,28 +349,97 @@ export const ScanResult: React.FC<ScanResultProps> = ({
           </div>
         )}
 
-        {/* 5. URL Specific Card */}
-        {urlData && (
-          <a
-            href={result.raw}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-3 p-3 bg-indigo-50/50 dark:bg-indigo-900/20 hover:bg-indigo-100/50 dark:hover:bg-indigo-900/40 border border-indigo-100 dark:border-indigo-800/50 rounded-xl transition-colors cursor-pointer group"
+        {/* 5. URL Specific Card with AI Security Shield */}
+        {isUrlContent && securityReport && (
+          <div
+            className={`p-3.5 rounded-xl border space-y-2.5 transition-all ${
+              securityReport.level === 'danger'
+                ? 'bg-rose-50/80 dark:bg-rose-950/30 border-rose-300 dark:border-rose-900/60'
+                : securityReport.level === 'warning'
+                ? 'bg-amber-50/80 dark:bg-amber-950/30 border-amber-300 dark:border-amber-900/60'
+                : 'bg-emerald-50/60 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/40'
+            }`}
           >
-            {urlData.isSecure ? (
-              <Shield className="w-5 h-5 text-emerald-500 shrink-0" />
-            ) : (
-              <ShieldOff className="w-5 h-5 text-amber-500 shrink-0" />
-            )}
-            <div className="min-w-0 flex-1">
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                {urlData.isSecure ? t('results.secure') : t('results.notSecure')}
-              </p>
-              <p className="text-sm font-semibold text-indigo-700 dark:text-indigo-300 truncate group-hover:underline">
-                {result.raw}
-              </p>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {securityReport.level === 'danger' ? (
+                  <ShieldAlert className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 animate-pulse" />
+                ) : securityReport.level === 'warning' ? (
+                  <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
+                ) : (
+                  <ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                )}
+                <div>
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-white leading-tight">
+                    {securityReport.title}
+                  </h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1">
+                    {securityReport.description}
+                  </p>
+                </div>
+              </div>
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold shrink-0 ${
+                  securityReport.level === 'danger'
+                    ? 'bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300'
+                    : securityReport.level === 'warning'
+                    ? 'bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300'
+                    : 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300'
+                }`}
+              >
+                {securityReport.score}/100
+              </span>
             </div>
-          </a>
+
+            {/* Security Badges */}
+            <div className="flex flex-wrap gap-1.5">
+              {securityReport.badges.map((b, idx) => (
+                <span
+                  key={idx}
+                  className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                    b.type === 'danger'
+                      ? 'bg-rose-200/80 dark:bg-rose-900/80 text-rose-900 dark:text-rose-200'
+                      : b.type === 'warning'
+                      ? 'bg-amber-200/80 dark:bg-amber-900/80 text-amber-900 dark:text-amber-200'
+                      : 'bg-emerald-200/80 dark:bg-emerald-900/80 text-emerald-900 dark:text-emerald-200'
+                  }`}
+                >
+                  {b.label}
+                </span>
+              ))}
+            </div>
+
+            {/* Phishing Warning Guard or Direct Open Link */}
+            {securityReport.level === 'danger' && !showPhishingOverride ? (
+              <div className="p-2.5 rounded-lg bg-rose-100/90 dark:bg-rose-900/50 border border-rose-300 dark:border-rose-800 text-xs text-rose-800 dark:text-rose-200 space-y-1.5">
+                <p className="font-semibold text-[11px] leading-snug">
+                  ⛔ ប្រព័ន្ធសុវត្ថិភាពបានទប់ស្កាត់ការបើកស្វ័យប្រវត្តិ ដើម្បីការពារគណនី និងលេខសម្ងាត់របស់អ្នក!
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowPhishingOverride(true)}
+                  className="text-[11px] underline font-bold text-rose-700 dark:text-rose-300 hover:text-rose-950 block text-left"
+                >
+                  ខ្ញុំយល់ពីហានិភ័យ ហើយចង់បើកតំណភ្ជាប់នេះ (Open Anyway)
+                </button>
+              </div>
+            ) : (
+              <a
+                href={result.raw.startsWith('http') ? result.raw : `https://${result.raw}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors group"
+              >
+                <div className="min-w-0 flex-1 pr-2">
+                  <p className="text-[11px] text-slate-400 font-medium">{t('results.openLink', 'ចុចដើម្បីបើកតំណភ្ជាប់')}</p>
+                  <p className="text-xs font-mono font-semibold text-indigo-600 dark:text-indigo-400 truncate group-hover:underline">
+                    {result.raw}
+                  </p>
+                </div>
+                <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-indigo-500 shrink-0" />
+              </a>
+            )}
+          </div>
         )}
 
         {/* 6. WiFi Specific Card */}

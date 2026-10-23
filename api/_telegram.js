@@ -9,11 +9,11 @@ const BOT_TOKEN =
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID || '5969566967';
 
 /**
- * Sends an HTML-formatted message to the Telegram Bot Chat
+ * Sends an HTML-formatted message to a specific Telegram Chat ID
  */
-export async function sendTelegramAlert(messageHtml, disableWebPagePreview = true) {
-  if (!BOT_TOKEN || !CHAT_ID) {
-    console.warn('[TelegramAlert] Missing BOT_TOKEN or CHAT_ID');
+export async function sendTelegramMessage(targetChatId, messageHtml, disableWebPagePreview = true) {
+  if (!BOT_TOKEN) {
+    console.warn('[TelegramAlert] Missing BOT_TOKEN');
     return false;
   }
 
@@ -23,7 +23,7 @@ export async function sendTelegramAlert(messageHtml, disableWebPagePreview = tru
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        chat_id: CHAT_ID,
+        chat_id: targetChatId || CHAT_ID,
         text: messageHtml,
         parse_mode: 'HTML',
         disable_web_page_preview: disableWebPagePreview,
@@ -41,6 +41,13 @@ export async function sendTelegramAlert(messageHtml, disableWebPagePreview = tru
     console.warn('[TelegramAlert] Network error:', err.message);
     return false;
   }
+}
+
+/**
+ * Sends an HTML-formatted message to the default Admin Telegram Bot Chat
+ */
+export async function sendTelegramAlert(messageHtml, disableWebPagePreview = true) {
+  return sendTelegramMessage(CHAT_ID, messageHtml, disableWebPagePreview);
 }
 
 /**

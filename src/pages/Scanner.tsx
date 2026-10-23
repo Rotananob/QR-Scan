@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useContext } from 'react';
-import { Upload, Keyboard, Sparkles } from 'lucide-react';
+import { Upload, Keyboard, Sparkles, Layers, Download, Trash2, Copy } from 'lucide-react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { useTranslation } from 'react-i18next';
 import { QRScanner } from '../components/scanner/QRScanner';
@@ -9,6 +9,8 @@ import { Modal } from '../components/common/Modal';
 import { parseQRContent } from '../services/qrParser';
 import { vibrate } from '../services/share';
 import { sound } from '../services/sound';
+import { voiceAssistant } from '../services/voiceAssistant';
+import { createProcessedCanvas, canvasToFile } from '../services/imageEnhancer';
 import { AppContext } from '../context/AppContext';
 import type { QRResult } from '../types/qr';
 
@@ -42,16 +44,82 @@ export const ScannerPage: React.FC = () => {
   const [imageLoading, setImageLoading] = useState(false);
   const [favorited, setFavorited] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [isBatchMode, setIsBatchMode] = useState(false);
+  const [batchItems, setBatchItems] = useState<Array<{
+    id: string;
+    raw: string;
+    type: string;
+    title: string;
+    count: number;
+    time: string;
+  }>>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const savedItemIdRef = useRef<string | null>(null);
 
   const handleDetected = useCallback(
     (raw: string, formatName?: string) => {
       const parsed = parseQRContent(raw, formatName);
+
+      if (isBatchMode) {
+        if (settings.sound) {
+          sound.playScanSuccess();
+          voiceAssistant.speak(`បានស្កេន ${parsed.title}`);
+        }
+        if (settings.vibrate) vibrate(40);
+
+        setBatchItems((prev) => {
+          const existingIdx = prev.findIndex((item) => item.raw === parsed.raw);
+          if (existingIdx >= 0) {
+            const updated = [...prev];
+            updated[existingIdx] = {
+              ...updated[existingIdx],
+              count: updated[existingIdx].count + 1,
+              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+            };
+            return updated;
+          } else {
+            return [
+              {
+                id: crypto.randomUUID(),
+                raw: parsed.raw,
+                type: parsed.type,
+                title: parsed.title,
+                count: 1,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+              },
+              ...prev,
+            ];
+          }
+        });
+
+        showToast(`បានស្កេន: ${parsed.title}`, 'success');
+
+        if (settings.autoSave) {
+          addToHistory({
+            id: crypto.randomUUID(),
+            content: parsed.raw,
+            type: parsed.type,
+            title: parsed.title,
+            domain: parsed.domain,
+            formatName: parsed.formatName,
+            createdAt: Date.now(),
+            favorite: false,
+          });
+        }
+        return;
+      }
+
       setResult(parsed);
       setScannerActive(false);
 
-      if (settings.sound) sound.playScanSuccess();
+      if (settings.sound) {
+        sound.playScanSuccess();
+        voiceAssistant.announceScanResult(parsed.type, {
+          amount: parsed.type === 'KHQR' ? (parsed.parsed as any)?.amount : undefined,
+          currency: parsed.type === 'KHQR' ? (parsed.parsed as any)?.currency : undefined,
+          title: parsed.title,
+        });
+      }
       if (settings.vibrate) vibrate(60);
 
       if (settings.autoSave) {
@@ -69,8 +137,46 @@ export const ScannerPage: React.FC = () => {
         });
       }
     },
-    [settings, addToHistory]
+    [isBatchMode, settings, addToHistory, showToast]
   );
+
+  const downloadBatchCSV = () => {
+    if (batchItems.length === 0) return;
+    const header = ['ID', 'Type', 'Title', 'Content', 'Quantity', 'ScannedAt'];
+    const rows = batchItems.map((item, idx) => [
+      idx + 1,
+      `"${item.type}"`,
+      `"${item.title.replace(/"/g, '""')}"`,
+      `"${item.raw.replace(/"/g, '""')}"`,
+      item.count,
+      `"${item.time}"`,
+    ]);
+    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [header.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `Batch_Scan_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('បានទាញយកឯកសារ CSV រួចរាល់', 'success');
+  };
+
+  const copyAllBatchCodes = async () => {
+    if (batchItems.length === 0) return;
+    const text = batchItems.map((item) => `${item.raw} (x${item.count})`).join('\n');
+    await navigator.clipboard.writeText(text);
+    showToast('បានចម្លងបញ្ជីកូដទាំងអស់', 'success');
+  };
+
+  const removeBatchItem = (id: string) => {
+    setBatchItems((prev) => prev.filter((it) => it.id !== id));
+  };
+
+  const clearBatchItems = () => {
+    setBatchItems([]);
+    showToast('បានសម្អាតបញ្ជីស្កេន', 'info');
+  };
 
   const handleScanAgain = () => {
     setResult(null);
@@ -174,10 +280,53 @@ export const ScannerPage: React.FC = () => {
         },
       });
 
-      const scanRes = await allScanner.scanFileV2(file, true);
-      allScanner.clear();
-      setPreviewImage(previewUrl);
-      handleDetected(scanRes.decodedText, scanRes.result?.format?.formatName || 'QR_CODE');
+      try {
+        const scanRes = await allScanner.scanFileV2(file, true);
+        allScanner.clear();
+        setPreviewImage(previewUrl);
+        handleDetected(scanRes.decodedText, scanRes.result?.format?.formatName || 'QR_CODE');
+        return;
+      } catch (multiErr) {
+        console.warn('[Multi-Format Decoder] Fallback to AI enhancements:', multiErr);
+      }
+
+      // 4. AI Inversion Recovery for dark-mode / white-on-black QR codes
+      try {
+        const invertedCanvas = await createProcessedCanvas(file, 'inverted');
+        const invertedFile = await canvasToFile(invertedCanvas, 'inverted.png');
+        const invScanner = new Html5Qrcode(tempId, {
+          verbose: false,
+          formatsToSupport: ALL_FORMATS,
+        });
+        const invRes = await invScanner.scanFileV2(invertedFile, true);
+        invScanner.clear();
+        setPreviewImage(previewUrl);
+        handleDetected(invRes.decodedText, invRes.result?.format?.formatName || 'QR_CODE');
+        showToast('ស្កេនជោគជ័យដោយ AI Invert Color (White-on-Black QR)', 'success');
+        return;
+      } catch (invErr) {
+        console.warn('[AI Inverter] Not decoded:', invErr);
+      }
+
+      // 5. AI High-Contrast Recovery for faint / damaged QR codes
+      try {
+        const hcCanvas = await createProcessedCanvas(file, 'high_contrast');
+        const hcFile = await canvasToFile(hcCanvas, 'contrast.png');
+        const hcScanner = new Html5Qrcode(tempId, {
+          verbose: false,
+          formatsToSupport: ALL_FORMATS,
+        });
+        const hcRes = await hcScanner.scanFileV2(hcFile, true);
+        hcScanner.clear();
+        setPreviewImage(previewUrl);
+        handleDetected(hcRes.decodedText, hcRes.result?.format?.formatName || 'QR_CODE');
+        showToast('ស្កេនជោគជ័យដោយ AI High Contrast Enhancement', 'success');
+        return;
+      } catch (hcErr) {
+        console.warn('[AI High-Contrast] Not decoded:', hcErr);
+      }
+
+      throw new Error('No QR found across all AI algorithms');
     } catch {
       URL.revokeObjectURL(previewUrl);
       showToast(t('scanner.noQrFound'), 'error');
@@ -207,10 +356,42 @@ export const ScannerPage: React.FC = () => {
         {/* Scanner or Result */}
         {!result ? (
           <>
+            {/* Single vs Continuous Batch Mode Switcher */}
+            <div className="flex items-center justify-between p-1 bg-slate-200/60 dark:bg-slate-800/60 backdrop-blur-md rounded-xl max-w-sm mx-auto w-full border border-slate-300/40 dark:border-white/5 shadow-inner">
+              <button
+                type="button"
+                onClick={() => setIsBatchMode(false)}
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all ${
+                  !isBatchMode
+                    ? 'bg-white dark:bg-indigo-600 text-slate-900 dark:text-white shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                ⚡ {t('scanner.singleMode', 'ស្កេនទោល (Single)')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsBatchMode(true)}
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                  isBatchMode
+                    ? 'bg-white dark:bg-indigo-600 text-slate-900 dark:text-white shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>{t('scanner.batchMode', 'ស្កេនបន្តបន្ទាប់ (Batch)')}</span>
+                {batchItems.length > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-extrabold">
+                    {batchItems.reduce((acc, it) => acc + it.count, 0)}
+                  </span>
+                )}
+              </button>
+            </div>
+
             <QRScanner
               onDetected={handleDetected}
               autoStart={settings.autoStartScanner}
-              preventDuplicates={settings.preventDuplicates}
+              preventDuplicates={!isBatchMode && settings.preventDuplicates}
               active={scannerActive}
               soundEnabled={settings.sound}
               onToggleSound={() => updateSettings({ sound: !settings.sound })}
@@ -239,6 +420,95 @@ export const ScannerPage: React.FC = () => {
                 {t('scanner.manualInput')}
               </Button>
             </div>
+
+            {/* Continuous Batch Scan Inventory Tray */}
+            {isBatchMode && (
+              <div className="p-4 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-2xl border border-slate-200 dark:border-white/10 shadow-lg space-y-3 animate-slide-up">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400">
+                      <Layers className="w-4 h-4" />
+                    </span>
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900 dark:text-white leading-tight">
+                        បញ្ជីស្កេនបន្តបន្ទាប់ ({batchItems.length} មុខ)
+                      </h4>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        សរុប {batchItems.reduce((acc, it) => acc + it.count, 0)} បំណែក
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      disabled={batchItems.length === 0}
+                      onClick={copyAllBatchCodes}
+                      className="p-1.5 rounded-lg border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 text-xs flex items-center gap-1"
+                      title="Copy All"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={batchItems.length === 0}
+                      onClick={downloadBatchCSV}
+                      className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold disabled:opacity-40 flex items-center gap-1 shadow-xs"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>CSV</span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={batchItems.length === 0}
+                      onClick={clearBatchItems}
+                      className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 disabled:opacity-40 transition-colors"
+                      title="Clear All"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {batchItems.length === 0 ? (
+                  <div className="text-center py-6 text-slate-400 dark:text-slate-500 text-xs border border-dashed border-slate-200 dark:border-white/10 rounded-xl">
+                    <p>មិនទាន់មានទិន្នន័យស្កេននៅឡើយទេ</p>
+                    <p className="text-[10px] mt-0.5">ដាក់កាមេរ៉ាលើ QR Code ឬ Barcode ដើម្បីស្កេនជាបន្តបន្ទាប់</p>
+                  </div>
+                ) : (
+                  <div className="max-h-56 overflow-y-auto space-y-2 pr-1 divide-y divide-slate-100 dark:divide-white/5">
+                    {batchItems.map((item) => (
+                      <div key={item.id} className="pt-2 first:pt-0 flex items-center justify-between gap-2 text-xs">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-slate-900 dark:text-white truncate">
+                              {item.title}
+                            </span>
+                            <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                              {item.type}
+                            </span>
+                          </div>
+                          <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400 truncate">
+                            {item.raw}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="px-2 py-0.5 rounded-full text-xs font-extrabold bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300">
+                            x{item.count}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => removeBatchItem(item.id)}
+                            className="text-slate-400 hover:text-rose-500 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </>
         ) : (
           <ScanResult

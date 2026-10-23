@@ -8,7 +8,7 @@ function payHelperDevPlugin() {
     configureServer(server: any) {
       server.middlewares.use((req: any, res: any, next: any) => {
         const url = req.url?.split('?')[0];
-        if (url === '/api/checkout' || url === '/api/check-status' || url === '/api/track') {
+        if (url === '/api/checkout' || url === '/api/check-status' || url === '/api/track' || url === '/api/telegram-webhook') {
           let body = '';
           req.on('data', (chunk: any) => {
             body += chunk;
@@ -42,6 +42,10 @@ function payHelperDevPlugin() {
               } else if (url === '/api/track') {
                 // @ts-ignore
                 const { default: handler } = await import('./api/track.js');
+                await handler(req, res);
+              } else if (url === '/api/telegram-webhook') {
+                // @ts-ignore
+                const { default: handler } = await import('./api/telegram-webhook.js');
                 await handler(req, res);
               }
             } catch (err: any) {

@@ -19,12 +19,14 @@ import {
   BookmarkCheck,
   Lock,
   Landmark,
+  Printer,
 } from 'lucide-react';
 import { generateClientKhqr } from '../services/khqrBuilder';
 import { useAuth } from '../context/AuthContext';
 import { AppContext } from '../context/AppContext';
 import { useNavigate } from 'react-router-dom';
 import { trackQrGenerated } from '../services/tracker';
+import { KhqrStandeeModal } from '../components/standee/KhqrStandeeModal';
 
 type QRType = 'URL' | 'KHQR' | 'TEXT' | 'WIFI' | 'PHONE' | 'EMAIL' | 'VCARD';
 type CenterIconType = 'NONE' | 'CROWN' | 'WIFI' | 'LINK' | 'PHONE' | 'MAIL';
@@ -82,6 +84,7 @@ export const GeneratorPage: React.FC = () => {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [standeeOpen, setStandeeOpen] = useState(false);
 
   // Strictly enforce VIP paywall: non-VIP users cannot retain VIP styling in state
   useEffect(() => {
@@ -1052,10 +1055,34 @@ export const GeneratorPage: React.FC = () => {
                   {saved ? 'បានរក្សាទុក' : 'Save to Cloud'}
                 </button>
               </div>
+
+              {/* Printable Table Tent Standee Button */}
+              <button
+                type="button"
+                disabled={!qrDataUrl}
+                onClick={() => setStandeeOpen(true)}
+                className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 hover:from-red-500 hover:to-amber-500 disabled:opacity-40 text-white font-bold text-xs shadow-md shadow-red-600/20 flex items-center justify-center gap-1.5 transition-all active:scale-95"
+              >
+                <Printer className="w-4 h-4" />
+                <span>🪧 បង្កើតស្លាក Standee តុ (Print & Standee)</span>
+              </button>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Standee Modal */}
+      <KhqrStandeeModal
+        open={standeeOpen}
+        onClose={() => setStandeeOpen(false)}
+        qrData={{
+          qrRaw: getPayload(),
+          merchantName: type === 'KHQR' ? khqrMerchant : 'MERCHANT STORE',
+          bankAccount: type === 'KHQR' ? khqrAccount : undefined,
+          amount: type === 'KHQR' && khqrAmount ? khqrAmount : undefined,
+          currency: type === 'KHQR' ? khqrCurrency : undefined,
+        }}
+      />
     </div>
   );
 };
