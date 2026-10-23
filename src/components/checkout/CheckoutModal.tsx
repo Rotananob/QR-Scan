@@ -114,7 +114,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         }),
       });
 
-      const data = await res.json();
+      const text = await res.text();
+      let data: any = null;
+      try {
+        data = JSON.parse(text);
+      } catch (parseErr) {
+        console.warn('[CheckoutModal] Non-JSON checkout response:', text.slice(0, 100));
+        throw new Error('មិនអាចតភ្ជាប់ទៅកាន់ម៉ាស៊ីនមេបានទេ សូមព្យាយាមម្តងទៀត។');
+      }
 
       if (!res.ok || !data.success) {
         if (res.status === 401 || data.code === 'UNAUTHENTICATED') {
@@ -196,8 +203,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           createdAt: invoice?.createdAt,
         }),
       });
-      const data = await res.json();
-      if (data.status === 'PAID') {
+      const text = await res.text();
+      let data: any = null;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        return false;
+      }
+      if (data?.status === 'PAID') {
         setStatus('PAID');
         setShowConfetti(true);
         setManualNotice(null);

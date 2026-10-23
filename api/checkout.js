@@ -4,14 +4,15 @@
  * 
  * Features:
  * - Direct connection to ABA PayWay checkout link: https://link.payway.com.kh/ABAPAYbR5506511
- * - Cloudflare WAF bypass with session cookie retention (__cf_bm) across all requests
- * - Captures token, clientId, deviceId, requestTime, and saves session in Firestore + memory
- * - Generates authentic bank deeplinks for ABA, Bakong, Acleda, and Wing
+ * - Cloudflare WAF bypass with authentic Chrome browser anti-fingerprint headers & __cf_bm cookie
+ * - Session pooling with 60s TTL to prevent hammering landing page
+ * - Resilient Failover: Seamless fallback to pay-helper createPayment if gateway unavailable
+ * - Cryptographic session signing & Firestore persistence
  * - Strict Rate Limiting: Maximum 20 QR code generations per day per user/IP
  */
 
 import crypto from 'crypto';
-import { buildBankDeeplinks } from 'pay-helper';
+import { buildBankDeeplinks, createPayment } from 'pay-helper';
 import { invoiceStore } from './_invoiceStore.js';
 import { getFirebaseAdmin } from './_firebaseAdmin.js';
 import { signPaymentSession } from './_security.js';
@@ -25,6 +26,16 @@ import {
 
 const CHECKOUT_URL = 'https://link.payway.com.kh/ABAPAYbR5506511';
 const MAX_DAILY_CHECKOUTS = 20;
+
+// Authentic Chrome Browser Fingerprint Headers
+const BROWSER_HEADERS = {
+  'User-Agent':
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+  'Accept-Language': 'en-US,en;q=0.9,km;q=0.8',
+  'sec-ch-ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+  'sec-ch-ua-mobile': '?0',
+  'sec-ch-ua-platform': '"Windows"',
+};
 
 // Daily in-memory rate limit ledger
 const dailyCounter = new Map();
@@ -57,11 +68,11 @@ function checkRateLimit(clientIdentifier) {
   };
 }
 
-// Global Cloudflare session cookie cache (captures and refreshes __cf_bm)
+// Global Cloudflare session cookie cache
 let globalCfCookieJar = '';
 
 function mergeCookies(existingJar, res) {
-  const setCookies = res.headers.getSetCookie ? res.headers.getSetCookie() : [res.headers.get('set-cookie') || ''];
+  const setCookies = res.headers?.getSetCookie ? res.headers.getSetCookie() : [res.headers?.get?.('set-cookie') || ''];
   const newCookies = setCookies.map((c) => (c ? c.split(';')[0].trim() : '')).filter(Boolean);
   if (newCookies.length === 0) return existingJar;
 
@@ -89,81 +100,136 @@ function generateRandomDeviceId(len = 10) {
   return out;
 }
 
-/**
- * Creates live registered PayWay invoice with full token and session metadata
- */
-async function createLivePaywayInvoice(amount = 3.00, currency = 'USD') {
-  // 1. Fetch checkout page to get aba_data, request_time, and __cf_bm cookie
+// In-memory cached session with 60s TTL
+let cachedSession = null;
+
+async function getPaywaySession(forceRefresh = false) {
+  if (!forceRefresh && cachedSession && Date.now() - cachedSession.cachedAt < 60000) {
+    return cachedSession;
+  }
+
   const pageRes = await fetch(CHECKOUT_URL, {
     headers: {
-      'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      ...BROWSER_HEADERS,
+      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+      'sec-fetch-dest': 'document',
+      'sec-fetch-mode': 'navigate',
+      'sec-fetch-site': 'none',
+      'sec-fetch-user': '?1',
+      'upgrade-insecure-requests': '1',
+      'cache-control': 'max-age=0',
     },
-    signal: AbortSignal.timeout(12000),
+    signal: AbortSignal.timeout(6000),
   });
 
   globalCfCookieJar = mergeCookies(globalCfCookieJar, pageRes);
   const html = await pageRes.text();
-  const abaDataMatch = html.match(/["']?aba_data["']?\s*[:=,]\s*["']([^"']+)["']/);
+  const abaMatch = html.match(/["']?aba_data["']?\s*[:=,]\s*["']([^"']+)["']/);
   const reqTimeMatch = html.match(/["']?request_time["']?\s*[:=,]\s*["']?(\d+)["']/);
 
-  if (!abaDataMatch || !reqTimeMatch) {
-    throw new Error('Unable to extract session tokens from PayWay checkout link.');
+  if (!abaMatch || !reqTimeMatch) {
+    throw new Error('Unable to extract session tokens from PayWay landing page.');
   }
 
-  const abaData = abaDataMatch[1].replace(/\\u002F/g, '/');
-  const requestTime = reqTimeMatch[1];
+  cachedSession = {
+    abaData: abaMatch[1].replace(/\\u002F/g, '/'),
+    requestTime: reqTimeMatch[1],
+    cookieJar: globalCfCookieJar,
+    cachedAt: Date.now(),
+  };
 
-  // 2. Register payment request via list-payment-options
-  const addFields = JSON.stringify({ amount: Number(amount).toFixed(2) });
-  const hash = crypto.createHash('sha512').update(`${requestTime}${abaData}${addFields}`, 'utf8').digest('hex');
+  return cachedSession;
+}
 
-  const listRes = await fetch('https://link.payway.com.kh/api/pw-app/v1/payment/gateway/list-payment-options', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json, text/plain, */*',
-      Origin: 'https://link.payway.com.kh',
-      Referer: CHECKOUT_URL,
-      'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-      ...(globalCfCookieJar ? { Cookie: globalCfCookieJar } : {}),
-    },
-    body: JSON.stringify({
-      aba_data: abaData,
-      additional_fields: addFields,
-      hash,
-      request_time: requestTime,
-    }),
-    signal: AbortSignal.timeout(12000),
+/**
+ * Creates live registered PayWay invoice with resilient retry and fallback
+ */
+async function createLivePaywayInvoice(amount = 3.00, currency = 'USD') {
+  try {
+    const session = await getPaywaySession();
+    const addFields = JSON.stringify({ amount: Number(amount).toFixed(2) });
+    const hash = crypto
+      .createHash('sha512')
+      .update(`${session.requestTime}${session.abaData}${addFields}`, 'utf8')
+      .digest('hex');
+
+    const listRes = await fetch('https://link.payway.com.kh/api/pw-app/v1/payment/gateway/list-payment-options', {
+      method: 'POST',
+      headers: {
+        ...BROWSER_HEADERS,
+        'Content-Type': 'application/json',
+        Accept: 'application/json, text/plain, */*',
+        Origin: 'https://link.payway.com.kh',
+        Referer: CHECKOUT_URL,
+        'sec-fetch-dest': 'empty',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-site': 'same-origin',
+        ...(session.cookieJar ? { Cookie: session.cookieJar } : {}),
+      },
+      body: JSON.stringify({
+        aba_data: session.abaData,
+        additional_fields: addFields,
+        hash,
+        request_time: session.requestTime,
+      }),
+      signal: AbortSignal.timeout(6000),
+    });
+
+    globalCfCookieJar = mergeCookies(globalCfCookieJar, listRes);
+    const listText = await listRes.text();
+    let listJson = null;
+    try {
+      listJson = JSON.parse(listText);
+    } catch {}
+
+    if (listRes.status === 200 && listJson?.token && listJson?.qr_string) {
+      const tranId = String(listJson.status?.tran_id || listJson.tran_id || `TRX-${Date.now()}`);
+      const qrString = listJson.qr_string;
+      const deviceId = generateRandomDeviceId(10);
+      const deeplinks = buildBankDeeplinks(qrString);
+
+      return {
+        tranId,
+        token: listJson.token,
+        clientId: listJson.client_id,
+        deviceId,
+        requestTime: session.requestTime,
+        qrString,
+        deeplinks,
+        cookieJar: globalCfCookieJar,
+        amount: Number(amount),
+        currency,
+        source: 'payway_live',
+      };
+    }
+  } catch (liveErr) {
+    console.warn('[Checkout] Live PayWay attempt warning:', liveErr.message);
+  }
+
+  // Resilient Failover: Native in-memory KHQR synthesis via pay-helper
+  console.log('[Checkout] Activating pay-helper native KHQR failover engine...');
+  const tranId = `VIP-${Date.now()}`;
+  const nativePayment = createPayment({
+    bakongId: 'rotana@abab',
+    merchantName: 'ROTANA NOBB',
+    merchantCity: 'Phnom Penh',
+    amount: Number(amount),
+    currency,
+    billNumber: tranId,
   });
-
-  globalCfCookieJar = mergeCookies(globalCfCookieJar, listRes);
-  const listJson = await listRes.json();
-
-  if (listRes.status !== 200 || !listJson.token) {
-    throw new Error(`PayWay payment initialization failed: ${listJson.status?.message || 'Invalid Data'}`);
-  }
-
-  const token = listJson.token;
-  const clientId = listJson.client_id;
-  const tranId = String(listJson.status?.tran_id || listJson.tran_id || `TRX-${Date.now()}`);
-  const qrString = listJson.qr_string;
-  const deviceId = generateRandomDeviceId(10);
-  const deeplinks = buildBankDeeplinks(qrString);
 
   return {
     tranId,
-    token,
-    clientId,
-    deviceId,
-    requestTime,
-    qrString,
-    deeplinks,
+    token: nativePayment.md5,
+    clientId: '5506511',
+    deviceId: generateRandomDeviceId(10),
+    requestTime: Date.now().toString(),
+    qrString: nativePayment.qrString,
+    deeplinks: nativePayment.deeplinks,
     cookieJar: globalCfCookieJar,
     amount: Number(amount),
     currency,
+    source: 'pay_helper_native',
   };
 }
 
@@ -231,7 +297,7 @@ export default async function handler(req, res) {
     const finalCurrency = 'USD';
     const createdAt = Date.now();
 
-    // Generate live registered invoice directly with PayWay & pay-helper
+    // Generate registered invoice with PayWay & pay-helper failover
     const invoice = await createLivePaywayInvoice(numAmount, finalCurrency);
     const tranIdStr = String(invoice.tranId);
 
@@ -258,6 +324,7 @@ export default async function handler(req, res) {
       qrString: invoice.qrString,
       createdAt,
       signature,
+      source: invoice.source,
     });
 
     // 2. Persist in Firestore so ALL serverless lambdas have immediate access
@@ -278,31 +345,29 @@ export default async function handler(req, res) {
           status: 'PENDING',
           createdAt: FieldValue.serverTimestamp(),
           expiresAt: new Date(Date.now() + 180 * 1000),
-          signature,
+          source: invoice.source,
         });
         console.log(`[Checkout] Persisted invoice session to Firestore: ${tranIdStr} for user ${userId}`);
       }
-    } catch (fsErr) {
-      console.warn('[Checkout] Firestore invoice session persist warning:', fsErr.message);
+    } catch (dbErr) {
+      console.warn('[Checkout] Firestore write warning:', dbErr.message);
     }
 
-    // Send Realtime Telegram Alert for VIP Checkout QR Generation
+    // 3. Dispatch Telegram Notification in Background
     try {
       const ip = getClientIp(req);
       getClientLocation(ip, req).then((loc) => {
         const device = parseDeviceDetails(req.headers['user-agent'], req.body?.clientData);
         const time = getCambodiaTimeString();
-        const userDisplay = req.body?.userEmail
-          ? `${req.body.userName || 'User'} (${req.body.userEmail})`
-          : `User [UID: ${userId}]`;
 
         const alertMsg = [
-          '💳 <b>LIFETIME VIP CHECKOUT QR INITIATED!</b>',
+          '🛍️ <b>NEW VIP CHECKOUT INITIATED</b>',
           '━━━━━━━━━━━━━━━━━━',
-          `💵 <b>Amount:</b> $3.00 USD (~12,000 KHR)`,
+          `💵 <b>Amount:</b> $3.00 USD (Lifetime VIP)`,
           `🧾 <b>Tran ID:</b> <code>${tranIdStr}</code>`,
-          `👤 <b>User:</b> ${userDisplay}`,
-          `🏦 <b>Gateway:</b> ABA PayWay / KHQR`,
+          `👤 <b>User ID:</b> <code>${userId}</code>`,
+          `📧 <b>Email:</b> <code>${req.body?.userEmail || 'N/A'}</code>`,
+          `⚡ <b>Engine:</b> ${invoice.source === 'payway_live' ? 'ABA PayWay Gateway Live' : 'pay-helper Native KHQR'}`,
           `📱 <b>Device:</b> ${device.platform} (${device.display})`,
           `📍 <b>Location:</b> ${loc.city}, ${loc.country} ${loc.flag}`,
           `🌐 <b>IP Address:</b> <code>${loc.ip}</code>`,
@@ -314,9 +379,10 @@ export default async function handler(req, res) {
       }).catch(() => {});
     } catch {}
 
+    // 4. Return complete response payload to frontend
     return res.status(200).json({
       success: true,
-      tranId: invoice.tranId,
+      tranId: tranIdStr,
       amount: numAmount,
       currency: finalCurrency,
       qrString: invoice.qrString,
@@ -325,18 +391,18 @@ export default async function handler(req, res) {
       clientId: invoice.clientId,
       deviceId: invoice.deviceId,
       requestTime: invoice.requestTime,
-      cfCookieAttached: Boolean(invoice.cookieJar && invoice.cookieJar.includes('__cf_bm')),
+      cfCookieAttached: !!invoice.cookieJar,
       signature,
       createdAt,
       remainingDaily: rateCheck.remaining,
       maxDaily: MAX_DAILY_CHECKOUTS,
       status: 'PENDING',
     });
-  } catch (err) {
-    console.error('[API Checkout Error]:', err);
+  } catch (error) {
+    console.error('[Checkout Error]:', error);
     return res.status(500).json({
-      error: err.message || 'Failed to generate checkout invoice.',
-      success: false,
+      error: error.message || 'Payment initiation failed.',
+      code: 'GATEWAY_ERROR',
     });
   }
 }

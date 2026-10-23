@@ -224,6 +224,13 @@ export default async function handler(req, res) {
           Referer: CHECKOUT_URL,
           'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+          'Accept-Language': 'en-US,en;q=0.9,km;q=0.8',
+          'sec-ch-ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+          'sec-ch-ua-mobile': '?0',
+          'sec-ch-ua-platform': '"Windows"',
+          'sec-fetch-dest': 'empty',
+          'sec-fetch-mode': 'cors',
+          'sec-fetch-site': 'same-origin',
           token: activeToken,
           ...(activeCookie ? { Cookie: activeCookie } : {}),
         };
@@ -239,12 +246,18 @@ export default async function handler(req, res) {
               hash,
               request_time: activeRequestTime,
             }),
-            signal: AbortSignal.timeout(9000),
+            signal: AbortSignal.timeout(6000),
           }
         );
 
         globalCfCookieJar = mergeCookies(globalCfCookieJar, checkRes);
-        const d = await checkRes.json();
+        const checkText = await checkRes.text();
+        let d = null;
+        try {
+          d = JSON.parse(checkText);
+        } catch {
+          console.warn('[CheckStatus] PayWay returned non-JSON:', checkText.slice(0, 100));
+        }
         const action = d?.data?.action?.toLowerCase();
         const rawStatus = d?.data?.status;
 
