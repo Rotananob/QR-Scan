@@ -33,7 +33,7 @@ export const ADMIN_CHAT_IDS = getAdminChatIds();
 /**
  * Sends an HTML-formatted message to a specific Telegram Chat ID
  */
-export async function sendTelegramMessage(targetChatId, messageHtml, disableWebPagePreview = true) {
+export async function sendTelegramMessage(targetChatId, messageHtml, disableWebPagePreview = true, replyMarkup = null) {
   if (!BOT_TOKEN) {
     console.warn('[TelegramAlert] Missing BOT_TOKEN');
     return false;
@@ -41,15 +41,21 @@ export async function sendTelegramMessage(targetChatId, messageHtml, disableWebP
 
   const endpoint = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
   try {
+    const payload = {
+      chat_id: targetChatId || PRIMARY_CHAT_ID,
+      text: messageHtml,
+      parse_mode: 'HTML',
+      disable_web_page_preview: disableWebPagePreview,
+    };
+
+    if (replyMarkup) {
+      payload.reply_markup = replyMarkup;
+    }
+
     const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: targetChatId || PRIMARY_CHAT_ID,
-        text: messageHtml,
-        parse_mode: 'HTML',
-        disable_web_page_preview: disableWebPagePreview,
-      }),
+      body: JSON.stringify(payload),
       signal: AbortSignal.timeout(6000),
     });
 
