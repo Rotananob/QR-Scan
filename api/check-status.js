@@ -2,16 +2,16 @@
  * Production Serverless Handler for Checking Transaction Settlement Status
  * Compatible with Vercel Serverless Functions & Local Vite Dev Server
  * 
- * Security Features:
+ * Features:
  * - Anti-tampering HMAC payment signature verification
  * - Anti-replay attack check in Firestore
  * - Rate limiting (120 checks/minute per IP)
  * - Cloudflare WAF bypass with session cookie retention (__cf_bm) across status checks
- * - Strict $3.00 USD settlement validation via pay-helper KhqrGateway
+ * - Multi-tier session lookup: Memory -> Firestore -> Request Payload
+ * - Cross-bank instant settlement detection (ABA, Bakong, Acleda, Wing, etc.)
  */
 
 import crypto from 'crypto';
-import { KhqrGateway } from 'pay-helper';
 import { invoiceStore } from './_invoiceStore.js';
 import { getFirebaseAdmin } from './_firebaseAdmin.js';
 import { checkStatusRateLimit, verifyPaymentSession, isTransactionClaimedByOther } from './_security.js';
@@ -40,41 +40,6 @@ function mergeCookies(existingJar, res) {
   return Array.from(cookieMap.entries()).map(([k, v]) => `${k}=${v}`).join('; ');
 }
 
-// Custom Fetch with Cloudflare __cf_bm Cookie Retention & Origin Routing
-const cloudflareSafeFetch = async (url, opts = {}) => {
-  let targetUrl = url;
-  if (targetUrl.includes('pwapp.ababank.com/api/pw-app/')) {
-    targetUrl = targetUrl.replace('https://pwapp.ababank.com/api/pw-app/', 'https://link.payway.com.kh/api/pw-app/');
-  }
-
-  const headers = { ...(opts.headers || {}) };
-  headers['Origin'] = 'https://link.payway.com.kh';
-  headers['Referer'] = CHECKOUT_URL;
-  headers['User-Agent'] =
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
-
-  if (globalCfCookieJar) {
-    headers['Cookie'] = globalCfCookieJar;
-  }
-
-  const res = await fetch(targetUrl, { ...opts, headers });
-  globalCfCookieJar = mergeCookies(globalCfCookieJar, res);
-  return res;
-};
-
-let gatewayInstance = null;
-function getGateway() {
-  if (!gatewayInstance) {
-    gatewayInstance = new KhqrGateway({
-      checkoutUrl: CHECKOUT_URL,
-      sessionCacheTtlMs: 300000,
-      timeoutMs: 10000,
-      customFetch: cloudflareSafeFetch,
-    });
-  }
-  return gatewayInstance;
-}
-
 async function activateVipInFirestore(userId, tranId, amount = 3.00, currency = 'USD') {
   if (!userId) {
     console.warn('[FirebaseAdmin] Cannot activate VIP: missing userId');
@@ -100,9 +65,23 @@ async function activateVipInFirestore(userId, tranId, amount = 3.00, currency = 
           amount: Number(amount) || 3.00,
           currency: currency || 'USD',
           updatedAt: FieldValue.serverTimestamp(),
+          activatedReason: 'KHQR Payment Verified via PayWay',
         },
         { merge: true }
       );
+
+      // Also update invoice record in Firestore
+      try {
+        await db.collection('invoices').doc(String(tranId)).set(
+          {
+            status: 'PAID',
+            paidAt: FieldValue.serverTimestamp(),
+            claimedBy: String(userId),
+          },
+          { merge: true }
+        );
+      } catch {}
+
       console.log(`[FirebaseAdmin] Successfully activated Lifetime VIP in Firestore for user: ${userId} (tran: ${tranId})`);
       return true;
     }
@@ -147,7 +126,7 @@ export default async function handler(req, res) {
       });
     }
 
-    const { tranId, token, deviceId, clientId, userId, signature, createdAt } = req.body || {};
+    const { tranId, token, deviceId, clientId, requestTime, userId, signature, createdAt } = req.body || {};
 
     if (!tranId) {
       return res.status(400).json({ error: 'Missing tranId in request body.' });
@@ -155,12 +134,49 @@ export default async function handler(req, res) {
 
     const tranIdStr = String(tranId).trim();
 
-    // 2. Validate payment session security signature
-    const cached = invoiceStore.get(tranIdStr);
-    const effectiveUserId = userId || cached?.userId;
-    const effectiveCreatedAt = createdAt || cached?.createdAt;
-    const effectiveSignature = signature || cached?.signature;
+    // 2. Multi-tier Session Resolution: Memory -> Firestore -> Request Payload
+    let session = invoiceStore.get(tranIdStr);
 
+    if (!session) {
+      try {
+        const { db } = getFirebaseAdmin();
+        if (db) {
+          const docSnap = await db.collection('invoices').doc(tranIdStr).get();
+          if (docSnap.exists) {
+            session = docSnap.data();
+          }
+        }
+      } catch (fsErr) {
+        console.warn('[CheckStatus] Firestore session lookup warning:', fsErr.message);
+      }
+    }
+
+    const effectiveUserId = userId || session?.userId;
+    const effectiveCreatedAt = createdAt || session?.createdAt;
+    const effectiveSignature = signature || session?.signature;
+
+    // 3. Check if user is ALREADY marked as Lifetime VIP in Firestore (Instant Success Path)
+    if (effectiveUserId) {
+      try {
+        const { db } = getFirebaseAdmin();
+        if (db) {
+          const userDoc = await db.collection('users').doc(String(effectiveUserId)).get();
+          if (userDoc.exists && userDoc.data()?.isLifetime) {
+            return res.status(200).json({
+              status: 'PAID',
+              tranId: tranIdStr,
+              rawStatus: 'approved',
+              verified: true,
+              alreadyActive: true,
+            });
+          }
+        }
+      } catch (userCheckErr) {
+        console.warn('[CheckStatus] User VIP status check warning:', userCheckErr.message);
+      }
+    }
+
+    // 4. Validate payment session security signature
     if (effectiveSignature) {
       const isValidSig = verifyPaymentSession({
         tranId: tranIdStr,
@@ -180,42 +196,18 @@ export default async function handler(req, res) {
       }
     }
 
-    // 3. Query native checkStatus closure if cached in memory
-    if (cached && typeof cached.checkStatus === 'function') {
-      try {
-        const liveResult = await cached.checkStatus();
-        console.log(`[CheckStatus] Native invoice.checkStatus result for ${tranIdStr}:`, liveResult);
-        if (liveResult.status === 'PAID') {
-          await activateVipInFirestore(
-            effectiveUserId,
-            tranIdStr,
-            cached.invoice?.amount || 3.00,
-            cached.invoice?.currency || 'USD'
-          );
-          return res.status(200).json({
-            status: 'PAID',
-            tranId: liveResult.tranId || tranIdStr,
-            rawStatus: liveResult.rawStatus || 'approved',
-            verified: true,
-          });
-        }
-      } catch (liveErr) {
-        console.warn(`[CheckStatus] Live check error for ${tranIdStr}:`, liveErr.message);
-      }
-    }
+    // 5. Query PayWay check-payment-status with authentic tokens & __cf_bm cookie
+    const activeToken = token || session?.token;
+    const activeClientId = clientId || session?.clientId;
+    const activeDeviceId = deviceId || session?.deviceId;
+    const activeRequestTime = requestTime || session?.requestTime || Date.now().toString();
+    const activeCookie = session?.cookieJar || globalCfCookieJar;
 
-    // 4. Direct ABA PayWay check-payment-status query through link.payway.com.kh with __cf_bm cookie
-    const activeToken = token || cached?.token;
-    const activeClientId = clientId || cached?.clientId;
-    const activeDeviceId = deviceId || cached?.deviceId;
-    const activeCookie = cached?.cookieJar;
-
-    if (activeToken && activeDeviceId && activeClientId) {
+    if (activeToken && activeClientId && activeDeviceId) {
       try {
-        const now = Date.now().toString();
         const hash = crypto
           .createHash('sha512')
-          .update(`${activeClientId}${activeDeviceId}${now}`, 'utf8')
+          .update(`${activeClientId}${activeDeviceId}${activeRequestTime}`, 'utf8')
           .digest('hex');
 
         const headers = {
@@ -229,74 +221,53 @@ export default async function handler(req, res) {
           ...(activeCookie ? { Cookie: activeCookie } : {}),
         };
 
-        const body = {
-          client_id: activeClientId,
-          device_id: activeDeviceId,
-          hash,
-          request_time: now,
-        };
-
         const checkRes = await fetch(
           'https://link.payway.com.kh/api/pw-app/v1/payment-link/check-payment-status',
           {
             method: 'POST',
             headers,
-            body: JSON.stringify(body),
-            signal: AbortSignal.timeout(8000),
+            body: JSON.stringify({
+              client_id: activeClientId,
+              device_id: activeDeviceId,
+              hash,
+              request_time: activeRequestTime,
+            }),
+            signal: AbortSignal.timeout(9000),
           }
         );
 
+        globalCfCookieJar = mergeCookies(globalCfCookieJar, checkRes);
         const d = await checkRes.json();
         const action = d?.data?.action?.toLowerCase();
+        const rawStatus = d?.data?.status;
+
+        console.log(`[CheckStatus] PayWay response for ${tranIdStr}:`, {
+          status: checkRes.status,
+          action,
+          rawStatus,
+          message: d?.message || d?.status?.message,
+        });
+
         const isPaid =
-          d?.status === 0 ||
-          d?.code === '00' ||
-          d?.data?.status === 'APPROVED' ||
-          d?.message?.toLowerCase?.()?.includes('approved') ||
           action === 'approved' ||
           action === 'paid' ||
-          action === 'completed';
+          action === 'completed' ||
+          rawStatus === 'APPROVED' ||
+          rawStatus === 'PAID' ||
+          (d?.status?.tran_id && d?.status?.tran_id !== '' && action !== 'request_qr');
 
         if (isPaid) {
           await activateVipInFirestore(effectiveUserId, tranIdStr, 3.00, 'USD');
           return res.status(200).json({
             status: 'PAID',
             tranId: tranIdStr,
-            rawStatus: action || d?.data?.status || 'approved',
+            rawStatus: action || rawStatus || 'approved',
             verified: true,
           });
         }
-      } catch (directErr) {
-        console.warn(`[CheckStatus] Direct check error:`, directErr.message);
+      } catch (paywayErr) {
+        console.warn(`[CheckStatus] Direct PayWay check error:`, paywayErr.message);
       }
-    }
-
-    // 5. Fallback query to KhqrGateway from pay-helper package
-    try {
-      const gw = getGateway();
-      const result = await gw.checkStatus({
-        tranId: tranIdStr,
-        checkoutUrl: CHECKOUT_URL,
-        clientId: activeClientId,
-        token: activeToken,
-      });
-
-      if (result.status === 'PAID') {
-        await activateVipInFirestore(
-          effectiveUserId,
-          tranIdStr,
-          cached?.amount || 3.00,
-          cached?.currency || 'USD'
-        );
-        return res.status(200).json({
-          status: 'PAID',
-          tranId: tranIdStr,
-          rawStatus: result.rawStatus || 'approved',
-          verified: true,
-        });
-      }
-    } catch (gwErr) {
-      console.warn(`[CheckStatus] KhqrGateway check warning:`, gwErr.message);
     }
 
     // Return current pending status

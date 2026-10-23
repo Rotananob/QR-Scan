@@ -41,6 +41,7 @@ interface InvoiceData {
   token?: string;
   clientId?: string;
   deviceId?: string;
+  requestTime?: string;
   signature?: string;
   createdAt?: number;
   remainingDaily?: number;
@@ -52,7 +53,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   defaultAmount: _defaultAmount = 3.00,
   currency = 'USD',
 }) => {
-  const { user, isLifetime, activateLifetimeVIP } = useAuth();
+  const { user, isLifetime, activateLifetimeVIP, refreshProfile } = useAuth();
   const navigate = useNavigate();
   
   const fixedAmount = 3.00;
@@ -121,6 +122,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         throw new Error(data.error || 'Failed to generate live checkout invoice.');
       }
 
+      // If user is already Lifetime VIP in cloud database
+      if (data.alreadyVip || data.status === 'PAID') {
+        setStatus('PAID');
+        setShowConfetti(true);
+        await refreshProfile();
+        return;
+      }
+
       // Record generation and update quota
       const updatedQuota = recordCheckoutQRGeneration();
       setQuota(updatedQuota);
@@ -178,6 +187,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           token: invoice?.token,
           deviceId: invoice?.deviceId,
           clientId: invoice?.clientId,
+          requestTime: invoice?.requestTime,
           userId: user?.uid,
           signature: invoice?.signature,
           createdAt: invoice?.createdAt,
@@ -196,22 +206,29 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
         // Activate lifetime in Professional Cloud & LocalStorage
         await activateLifetimeVIP(tranId, fixedAmount, currency);
+        await refreshProfile();
         return true;
       }
     } catch (e) {
       console.warn('[CheckoutModal] Check error:', e);
     }
     return false;
-  }, [activateLifetimeVIP, currency, fixedAmount, invoice?.clientId, invoice?.createdAt, invoice?.deviceId, invoice?.signature, invoice?.token, user?.uid]);
+  }, [activateLifetimeVIP, currency, fixedAmount, invoice?.clientId, invoice?.createdAt, invoice?.deviceId, invoice?.requestTime, invoice?.signature, invoice?.token, refreshProfile, user?.uid]);
 
   const handleManualVerify = async () => {
     if (!invoice?.tranId || checkingManual) return;
     setCheckingManual(true);
     setManualNotice(null);
     try {
+      await refreshProfile();
       const paid = await checkStatusOnce(invoice.tranId);
       if (!paid) {
-        setManualNotice('មិនទាន់ទទួលបានការបញ្ជាក់ពី ABA នៅឡើយទេ។ ប្រសិនបើអ្នកបានផ្ទេររួចហើយ សូមរង់ចាំប្រហែល ៣ វិនាទី ប្រព័ន្ធនឹងពិនិត្យស្វ័យប្រវត្ត!');
+        if (isLifetime) {
+          setStatus('PAID');
+          setShowConfetti(true);
+          return;
+        }
+        setManualNotice('មិនទាន់ទទួលបានការបញ្ជាក់ពីប្រព័ន្ធនៅឡើយទេ។ ប្រសិនបើអ្នកបានផ្ទេររួចហើយ សូមរង់ចាំប្រហែល ៣ វិនាទី ប្រព័ន្ធនឹងពិនិត្យស្វ័យប្រវត្តិ!');
       }
     } finally {
       setCheckingManual(false);

@@ -1,17 +1,19 @@
 /**
- * Production Serverless Handler for Live Checkout QR Generation via pay-helper
+ * Production Serverless Handler for Live Checkout QR Generation via PayWay & pay-helper
  * Compatible with Vercel Serverless Functions & Local Vite Dev Server
  * 
  * Features:
  * - Direct connection to ABA PayWay checkout link: https://link.payway.com.kh/ABAPAYbR5506511
  * - Cloudflare WAF bypass with session cookie retention (__cf_bm) across all requests
- * - Zero-flagging: Routes PayWay API calls within the link.payway.com.kh origin session
- * - In-memory failover fallback via pay-helper createPayment to ensure 100% uptime
+ * - Captures token, clientId, deviceId, requestTime, and saves session in Firestore + memory
+ * - Generates authentic bank deeplinks for ABA, Bakong, Acleda, and Wing
  * - Strict Rate Limiting: Maximum 20 QR code generations per day per user/IP
  */
 
-import { KhqrGateway, createPayment } from 'pay-helper';
+import crypto from 'crypto';
+import { buildBankDeeplinks } from 'pay-helper';
 import { invoiceStore } from './_invoiceStore.js';
+import { getFirebaseAdmin } from './_firebaseAdmin.js';
 import { signPaymentSession } from './_security.js';
 
 const CHECKOUT_URL = 'https://link.payway.com.kh/ABAPAYbR5506511';
@@ -70,45 +72,92 @@ function mergeCookies(existingJar, res) {
   return Array.from(cookieMap.entries()).map(([k, v]) => `${k}=${v}`).join('; ');
 }
 
-// Custom Fetch with Cloudflare __cf_bm Cookie Retention & Origin Routing
-const cloudflareSafeFetch = async (url, opts = {}) => {
-  // Always route PayWay gateway endpoints through link.payway.com.kh to stay inside the Cloudflare domain zone
-  let targetUrl = url;
-  if (targetUrl.includes('pwapp.ababank.com/api/pw-app/')) {
-    targetUrl = targetUrl.replace('https://pwapp.ababank.com/api/pw-app/', 'https://link.payway.com.kh/api/pw-app/');
+function generateRandomDeviceId(len = 10) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let out = '';
+  const bytes = crypto.randomBytes(len);
+  for (let i = 0; i < len; i++) {
+    out += chars[bytes[i] % chars.length];
+  }
+  return out;
+}
+
+/**
+ * Creates live registered PayWay invoice with full token and session metadata
+ */
+async function createLivePaywayInvoice(amount = 3.00, currency = 'USD') {
+  // 1. Fetch checkout page to get aba_data, request_time, and __cf_bm cookie
+  const pageRes = await fetch(CHECKOUT_URL, {
+    headers: {
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    },
+    signal: AbortSignal.timeout(12000),
+  });
+
+  globalCfCookieJar = mergeCookies(globalCfCookieJar, pageRes);
+  const html = await pageRes.text();
+  const abaDataMatch = html.match(/["']?aba_data["']?\s*[:=,]\s*["']([^"']+)["']/);
+  const reqTimeMatch = html.match(/["']?request_time["']?\s*[:=,]\s*["']?(\d+)["']/);
+
+  if (!abaDataMatch || !reqTimeMatch) {
+    throw new Error('Unable to extract session tokens from PayWay checkout link.');
   }
 
-  const headers = { ...(opts.headers || {}) };
-  headers['Origin'] = 'https://link.payway.com.kh';
-  headers['Referer'] = CHECKOUT_URL;
-  headers['User-Agent'] =
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+  const abaData = abaDataMatch[1].replace(/\\u002F/g, '/');
+  const requestTime = reqTimeMatch[1];
 
-  // Attach active Cloudflare __cf_bm cookie
-  if (globalCfCookieJar) {
-    headers['Cookie'] = globalCfCookieJar;
+  // 2. Register payment request via list-payment-options
+  const addFields = JSON.stringify({ amount: Number(amount).toFixed(2) });
+  const hash = crypto.createHash('sha512').update(`${requestTime}${abaData}${addFields}`, 'utf8').digest('hex');
+
+  const listRes = await fetch('https://link.payway.com.kh/api/pw-app/v1/payment/gateway/list-payment-options', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json, text/plain, */*',
+      Origin: 'https://link.payway.com.kh',
+      Referer: CHECKOUT_URL,
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      ...(globalCfCookieJar ? { Cookie: globalCfCookieJar } : {}),
+    },
+    body: JSON.stringify({
+      aba_data: abaData,
+      additional_fields: addFields,
+      hash,
+      request_time: requestTime,
+    }),
+    signal: AbortSignal.timeout(12000),
+  });
+
+  globalCfCookieJar = mergeCookies(globalCfCookieJar, listRes);
+  const listJson = await listRes.json();
+
+  if (listRes.status !== 200 || !listJson.token) {
+    throw new Error(`PayWay payment initialization failed: ${listJson.status?.message || 'Invalid Data'}`);
   }
 
-  const res = await fetch(targetUrl, { ...opts, headers });
+  const token = listJson.token;
+  const clientId = listJson.client_id;
+  const tranId = String(listJson.status?.tran_id || listJson.tran_id || `TRX-${Date.now()}`);
+  const qrString = listJson.qr_string;
+  const deviceId = generateRandomDeviceId(10);
+  const deeplinks = buildBankDeeplinks(qrString);
 
-  // Update Cloudflare __cf_bm cookie jar
-  globalCfCookieJar = mergeCookies(globalCfCookieJar, res);
-
-  return res;
-};
-
-// Singleton gateway with session cache retention (5 minutes)
-let gatewayInstance = null;
-function getGateway() {
-  if (!gatewayInstance) {
-    gatewayInstance = new KhqrGateway({
-      checkoutUrl: CHECKOUT_URL,
-      sessionCacheTtlMs: 300000,
-      timeoutMs: 12000,
-      customFetch: cloudflareSafeFetch,
-    });
-  }
-  return gatewayInstance;
+  return {
+    tranId,
+    token,
+    clientId,
+    deviceId,
+    requestTime,
+    qrString,
+    deeplinks,
+    cookieJar: globalCfCookieJar,
+    amount: Number(amount),
+    currency,
+  };
 }
 
 export default async function handler(req, res) {
@@ -130,13 +179,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 1. Determine client identifier for rate limiting (User ID or IP)
-    const clientIp =
-      req.headers['x-forwarded-for']?.split(',')[0] ||
-      req.headers['x-real-ip'] ||
-      req.socket?.remoteAddress ||
-      'anonymous';
-
     const userId = req.body?.userId;
 
     // Strict requirement: User MUST be authenticated to generate live checkout invoice
@@ -148,7 +190,25 @@ export default async function handler(req, res) {
       });
     }
 
-    // 2. Enforce strict daily limit (Max 20/day)
+    // Check if user is ALREADY VIP in Firestore
+    try {
+      const { db } = getFirebaseAdmin();
+      if (db) {
+        const userDoc = await db.collection('users').doc(String(userId)).get();
+        if (userDoc.exists && userDoc.data()?.isLifetime) {
+          return res.status(200).json({
+            success: true,
+            alreadyVip: true,
+            status: 'PAID',
+            message: 'User is already a Lifetime VIP member.',
+          });
+        }
+      }
+    } catch (checkErr) {
+      console.warn('[Checkout] User VIP check warning:', checkErr.message);
+    }
+
+    // Enforce strict daily limit (Max 20/day)
     const rateCheck = checkRateLimit(userId);
     if (!rateCheck.allowed) {
       return res.status(429).json({
@@ -159,54 +219,13 @@ export default async function handler(req, res) {
       });
     }
 
-    // 3. Official Lifetime VIP pricing: strictly $3.00 USD
+    // Official Lifetime VIP pricing: strictly $3.00 USD
     const numAmount = 3.00;
     const finalCurrency = 'USD';
     const createdAt = Date.now();
 
-    // 4. Generate live registered invoice using pay-helper KhqrGateway with Cloudflare __cf_bm protection
-    let invoice = null;
-    let capturedToken = null;
-    let capturedClientId = null;
-    let capturedDeviceId = null;
-
-    try {
-      const gw = getGateway();
-      invoice = await gw.createInvoice({
-        amount: numAmount,
-        currency: finalCurrency,
-        checkoutUrl: CHECKOUT_URL,
-      });
-
-      // Warmup check to register the session
-      try {
-        const warmup = await invoice.checkStatus();
-        capturedToken = warmup?.token || null;
-      } catch (e) {
-        console.warn('[Checkout] Initial warmup warning:', e.message);
-      }
-    } catch (gwErr) {
-      console.warn('[KhqrGateway Warmup Warning]:', gwErr.message, 'Falling back to pay-helper createPayment...');
-      // Safe failover: synthesize authentic EMVCo KHQR payload using pay-helper
-      const billNumber = `VIP-${Date.now().toString().slice(-8)}`;
-      const fallbackPay = createPayment({
-        bakongId: 'likakong@abaa',
-        merchantName: 'QR Scan VIP',
-        amount: numAmount,
-        currency: finalCurrency,
-        billNumber,
-      });
-
-      invoice = {
-        tranId: billNumber,
-        amount: numAmount,
-        currency: finalCurrency,
-        qrString: fallbackPay.qrString,
-        deeplinks: fallbackPay.deeplinks,
-        checkStatus: async () => ({ status: 'PENDING', tranId: billNumber }),
-      };
-    }
-
+    // Generate live registered invoice directly with PayWay & pay-helper
+    const invoice = await createLivePaywayInvoice(numAmount, finalCurrency);
     const tranIdStr = String(invoice.tranId);
 
     // Cryptographically sign this payment session
@@ -218,21 +237,47 @@ export default async function handler(req, res) {
       createdAt,
     });
 
-    // Save in shared in-memory invoice store with cookieJar containing __cf_bm
+    // 1. Save in shared in-memory invoice store
     invoiceStore.set(tranIdStr, {
-      invoice,
-      checkStatus: invoice.checkStatus,
       tranId: tranIdStr,
-      token: capturedToken,
-      clientId: capturedClientId,
-      deviceId: capturedDeviceId,
-      cookieJar: globalCfCookieJar,
+      token: invoice.token,
+      clientId: invoice.clientId,
+      deviceId: invoice.deviceId,
+      requestTime: invoice.requestTime,
+      cookieJar: invoice.cookieJar,
       userId,
       amount: numAmount,
       currency: finalCurrency,
+      qrString: invoice.qrString,
       createdAt,
       signature,
     });
+
+    // 2. Persist in Firestore so ALL serverless lambdas have immediate access
+    try {
+      const { db, FieldValue } = getFirebaseAdmin();
+      if (db) {
+        await db.collection('invoices').doc(tranIdStr).set({
+          tranId: tranIdStr,
+          token: invoice.token,
+          clientId: invoice.clientId,
+          deviceId: invoice.deviceId,
+          requestTime: invoice.requestTime,
+          cookieJar: invoice.cookieJar,
+          userId,
+          amount: numAmount,
+          currency: finalCurrency,
+          qrString: invoice.qrString,
+          status: 'PENDING',
+          createdAt: FieldValue.serverTimestamp(),
+          expiresAt: new Date(Date.now() + 180 * 1000),
+          signature,
+        });
+        console.log(`[Checkout] Persisted invoice session to Firestore: ${tranIdStr} for user ${userId}`);
+      }
+    } catch (fsErr) {
+      console.warn('[Checkout] Firestore invoice session persist warning:', fsErr.message);
+    }
 
     return res.status(200).json({
       success: true,
@@ -241,10 +286,11 @@ export default async function handler(req, res) {
       currency: finalCurrency,
       qrString: invoice.qrString,
       deeplinks: invoice.deeplinks,
-      token: capturedToken,
-      clientId: capturedClientId,
-      deviceId: capturedDeviceId,
-      cfCookieAttached: Boolean(globalCfCookieJar && globalCfCookieJar.includes('__cf_bm')),
+      token: invoice.token,
+      clientId: invoice.clientId,
+      deviceId: invoice.deviceId,
+      requestTime: invoice.requestTime,
+      cfCookieAttached: Boolean(invoice.cookieJar && invoice.cookieJar.includes('__cf_bm')),
       signature,
       createdAt,
       remainingDaily: rateCheck.remaining,
