@@ -271,16 +271,20 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       const raw = localStorage.getItem('qr_active_checkout_session');
       if (raw) {
         const session = JSON.parse(raw);
-        const remaining = Math.floor((session.expiresAt - Date.now()) / 1000);
-        if (remaining > 5 && session.invoice?.tranId && session.qrDataUrl) {
-          setInvoice(session.invoice);
-          setQrDataUrl(session.qrDataUrl);
-          setTimeLeft(remaining);
-          setStatus('PENDING');
-          startTimeRef.current = session.expiresAt - 180 * 1000;
-          return;
-        } else {
+        if (session.userId && user?.uid && session.userId !== user.uid) {
           localStorage.removeItem('qr_active_checkout_session');
+        } else {
+          const remaining = Math.floor((session.expiresAt - Date.now()) / 1000);
+          if (remaining > 5 && session.invoice?.tranId && session.qrDataUrl) {
+            setInvoice(session.invoice);
+            setQrDataUrl(session.qrDataUrl);
+            setTimeLeft(remaining);
+            setStatus('PENDING');
+            startTimeRef.current = session.expiresAt - 180 * 1000;
+            return;
+          } else {
+            localStorage.removeItem('qr_active_checkout_session');
+          }
         }
       }
     } catch {

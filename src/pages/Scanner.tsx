@@ -214,6 +214,7 @@ export const ScannerPage: React.FC = () => {
               active={scannerActive}
               soundEnabled={settings.sound}
               onToggleSound={() => updateSettings({ sound: !settings.sound })}
+              onUploadImage={() => fileInputRef.current?.click()}
             />
 
             {/* Quick Actions (Upload Image / Manual Input) */}

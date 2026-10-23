@@ -15,6 +15,8 @@ interface UseQRScannerOptions {
   initialScanMode?: ScanMode;
 }
 
+const STORAGE_KEY_CAMERA_ALLOWED = 'qr_camera_permission_granted';
+
 // All major 1D and 2D barcode formats supported by html5-qrcode
 const ALL_SUPPORTED_FORMATS = [
   Html5QrcodeSupportedFormats.QR_CODE,
@@ -81,6 +83,7 @@ export function useQRScanner({
   const lastScannedRef = useRef<string | null>(null);
   const cooldownRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isScanningRef = useRef(false);
+  const isStartingRef = useRef(false);
   const containerIdRef = useRef('qr-scanner-container');
   const activeScanModeRef = useRef<ScanMode>(initialScanMode);
 
@@ -91,56 +94,76 @@ export function useQRScanner({
     }
   }, []);
 
+  const cleanContainerDOM = useCallback(() => {
+    const el = document.getElementById(containerIdRef.current);
+    if (el) {
+      el.innerHTML = '';
+    }
+  }, []);
+
   const stopScanner = useCallback(async () => {
     clearCooldown();
-    if (scannerRef.current && isScanningRef.current) {
+    if (scannerRef.current) {
       try {
-        await scannerRef.current.stop();
+        if (isScanningRef.current) {
+          await scannerRef.current.stop();
+        }
+      } catch {
+        // Safe ignore
+      }
+      try {
         scannerRef.current.clear();
       } catch {
-        // Already stopped or cleaning up
+        // Safe ignore
       }
-      isScanningRef.current = false;
+      scannerRef.current = null;
     }
-    scannerRef.current = null;
+    isScanningRef.current = false;
+    isStartingRef.current = false;
+    cleanContainerDOM();
     setStatus('idle');
     setFlashOn(false);
     setHasFlash(false);
     setHasZoom(false);
-  }, [clearCooldown]);
+  }, [clearCooldown, cleanContainerDOM]);
+
+  // Check browser-level permission status safely
+  const queryPermissionState = useCallback(async (): Promise<PermissionState | 'unknown'> => {
+    if (typeof navigator !== 'undefined' && navigator.permissions?.query) {
+      try {
+        const res = await navigator.permissions.query({ name: 'camera' as PermissionName });
+        return res.state;
+      } catch {
+        // Fallback for browsers that do not support { name: 'camera' }
+      }
+    }
+    return 'unknown';
+  }, []);
 
   const startScanner = useCallback(
     async (cameraId?: string, mode?: ScanMode) => {
+      // Prevent concurrent race calls
+      if (isStartingRef.current) return;
+      isStartingRef.current = true;
+
       const targetMode = mode ?? activeScanModeRef.current;
       activeScanModeRef.current = targetMode;
 
-      if (isScanningRef.current) {
-        await stopScanner();
+      // Ensure any previous instance or stray DOM nodes are fully purged
+      if (scannerRef.current) {
+        try {
+          if (isScanningRef.current) await scannerRef.current.stop();
+        } catch {}
+        try {
+          scannerRef.current.clear();
+        } catch {}
+        scannerRef.current = null;
       }
+      isScanningRef.current = false;
+      cleanContainerDOM();
 
       setError(null);
       setStatus('requesting-permission');
-
-      // Enumerate available cameras
-      let availableCameras: CameraDevice[] = [];
-      try {
-        const devices = await Html5Qrcode.getCameras();
-        availableCameras = devices.map((d) => ({ deviceId: d.id, label: d.label }));
-        setCameras(availableCameras);
-      } catch (err: unknown) {
-        console.warn('Failed to enumerate cameras, will use default constraints.', err);
-      }
-
-      // Pick rear/environment camera by default on mobile
-      const targetId =
-        cameraId ??
-        (availableCameras.length > 0
-          ? availableCameras.find((c) => /(back|rear|environment|triple|ultra)/i.test(c.label))?.deviceId ??
-            availableCameras[0].deviceId
-          : undefined);
-
-      setCurrentCameraId(targetId ?? null);
-      setStatus('starting');
 
       try {
         // Choose formats based on active mode for optimal performance
@@ -151,7 +174,7 @@ export function useQRScanner({
           formats = BARCODE_ONLY_FORMATS;
         }
 
-        // Initialize scanner with native hardware BarcodeDetector acceleration
+        // Fresh instance on clean DOM container
         const scanner = new Html5Qrcode(containerIdRef.current, {
           verbose: false,
           formatsToSupport: formats,
@@ -161,10 +184,27 @@ export function useQRScanner({
         });
         scannerRef.current = scanner;
 
-        // Ultra-HD camera constraints for maximum clarity & rapid focus
-        const videoConstraints: MediaTrackConstraints = targetId
+        // Dynamic responsive QR Box tailored to scanning mode
+        const qrboxFunction = (viewfinderWidth: number, viewfinderHeight: number): { width: number; height: number } => {
+          const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+          if (targetMode === 'barcode') {
+            const width = Math.min(Math.floor(viewfinderWidth * 0.88), 340);
+            const height = Math.min(Math.floor(width * 0.5), 180);
+            return { width, height };
+          }
+          const size = Math.min(Math.floor(minEdge * 0.74), 300);
+          return { width: size, height: size };
+        };
+
+        // Prefer environment camera directly without pre-calling getCameras (prevents double prompt)
+        const cameraConfig = cameraId
+          ? { deviceId: { exact: cameraId } }
+          : { facingMode: 'environment' };
+
+        // Ultra-HD camera constraints for instant focus and high-speed recognition
+        const videoConstraints: MediaTrackConstraints = cameraId
           ? {
-              deviceId: { exact: targetId },
+              deviceId: { exact: cameraId },
               width: { min: 640, ideal: 1920, max: 3840 },
               height: { min: 480, ideal: 1080, max: 2160 },
               frameRate: { ideal: 30, min: 24 },
@@ -176,26 +216,12 @@ export function useQRScanner({
               frameRate: { ideal: 30, min: 24 },
             };
 
-        // Responsive dynamic QR Box tailored to scanning mode
-        const qrboxFunction = (viewfinderWidth: number, viewfinderHeight: number): { width: number; height: number } => {
-          const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-          if (targetMode === 'barcode') {
-            // Wider horizontal box for 1D product / book barcodes
-            const width = Math.min(Math.floor(viewfinderWidth * 0.88), 340);
-            const height = Math.min(Math.floor(width * 0.5), 180);
-            return { width, height };
-          }
-          // Square box for QR & KHQR
-          const size = Math.min(Math.floor(minEdge * 0.74), 300);
-          return { width: size, height: size };
-        };
-
-        const cameraConfig = targetId ? { deviceId: { exact: targetId } } : { facingMode: 'environment' };
+        setStatus('starting');
 
         await scanner.start(
           cameraConfig,
           {
-            fps: 25, // 25 FPS for ultra-responsive scan rate
+            fps: 25,
             qrbox: qrboxFunction,
             aspectRatio: 1.0,
             videoConstraints,
@@ -213,12 +239,31 @@ export function useQRScanner({
             onDetected(decodedText, formatName);
           },
           () => {
-            // Frame processed without match (standard during continuous scan)
+            // Frame processed without match
           }
         );
 
         isScanningRef.current = true;
         setStatus('scanning');
+        setCurrentCameraId(cameraId ?? null);
+
+        // Remember permission was granted so PWA never gets confused
+        try {
+          localStorage.setItem(STORAGE_KEY_CAMERA_ALLOWED, 'true');
+        } catch {}
+
+        // Enumerate camera devices silently in background now that permission is active
+        if (navigator?.mediaDevices?.enumerateDevices) {
+          navigator.mediaDevices.enumerateDevices().then((devices) => {
+            const videoDevices = devices
+              .filter((d) => d.kind === 'videoinput')
+              .map((d, index) => ({
+                deviceId: d.deviceId,
+                label: d.label || `Camera ${index + 1}`,
+              }));
+            setCameras(videoDevices);
+          }).catch(() => {});
+        }
 
         // Inspect and activate hardware capabilities (continuous autofocus, torch, zoom)
         try {
@@ -238,7 +283,6 @@ export function useQRScanner({
               }
             }
 
-            // Apply continuous auto-focus & exposure if supported by device
             try {
               await track.applyConstraints({
                 advanced: [
@@ -246,40 +290,100 @@ export function useQRScanner({
                   { exposureMode: 'continuous' } as unknown as MediaTrackConstraintSet,
                 ],
               });
-            } catch {
-              // Advanced focus constraints ignored by browser if unsupported
-            }
+            } catch {}
 
-            // Check actual running resolution to confirm HD status
             const settings = track.getSettings?.();
             if (settings && settings.width && settings.width >= 1280) {
               setIsHD(true);
             }
           }
-        } catch {
-          // Capability check ignored
-        }
+        } catch {}
       } catch (err: unknown) {
         const msg = (err as Error)?.message ?? String(err);
-        if (msg.includes('Permission') || msg.includes('NotAllowed')) {
+        console.warn('[useQRScanner] Camera start failed:', msg);
+
+        if (scannerRef.current) {
+          try {
+            scannerRef.current.clear();
+          } catch {}
+          scannerRef.current = null;
+        }
+        cleanContainerDOM();
+        isScanningRef.current = false;
+
+        if (
+          msg.includes('Permission') ||
+          msg.includes('NotAllowed') ||
+          msg.includes('Permission denied') ||
+          msg.includes('dismissed')
+        ) {
           setStatus('permission-denied');
-          setError('Camera permission denied. Please allow camera access in your browser.');
+          setError('Camera permission was denied. Please allow camera access in your browser settings.');
         } else if (msg.includes('NotFound') || msg.includes('DevicesNotFound')) {
           setStatus('camera-unavailable');
-          setError('Camera not found on this device.');
+          setError('No camera was detected on this device.');
         } else if (msg.includes('NotReadable') || msg.includes('TrackStart')) {
           setStatus('error');
-          setError('Camera is currently in use by another application.');
+          setError('Camera is in use by another application. Please close other camera apps and retry.');
         } else {
           setStatus('error');
           setError(`Camera error: ${msg}`);
         }
-        scannerRef.current = null;
-        isScanningRef.current = false;
+      } finally {
+        isStartingRef.current = false;
       }
     },
-    [stopScanner, onDetected, preventDuplicates, cooldownMs, clearCooldown]
+    [cleanContainerDOM, onDetected, preventDuplicates, cooldownMs, clearCooldown]
   );
+
+  // Dynamic Permission State Observer & Auto-Reconnect
+  useEffect(() => {
+    let permStatus: PermissionStatus | null = null;
+    let isSubscribed = true;
+
+    if (typeof navigator !== 'undefined' && navigator.permissions?.query) {
+      navigator.permissions
+        .query({ name: 'camera' as PermissionName })
+        .then((statusObj) => {
+          if (!isSubscribed) return;
+          permStatus = statusObj;
+
+          statusObj.onchange = () => {
+            console.log('[useQRScanner] Permission changed in browser settings to:', statusObj.state);
+            if (statusObj.state === 'granted') {
+              // User toggled camera to "Allow" in site settings! Auto-start immediately!
+              startScanner();
+            } else if (statusObj.state === 'denied') {
+              stopScanner();
+              setStatus('permission-denied');
+              setError('Camera permission denied in browser settings.');
+            }
+          };
+        })
+        .catch(() => {});
+    }
+
+    // Auto-resume camera when switching back to app after granting permissions in Settings
+    const handleVisibilityOrFocus = async () => {
+      if (document.visibilityState === 'visible') {
+        const state = await queryPermissionState();
+        if (state === 'granted' && !isScanningRef.current && !isStartingRef.current) {
+          console.log('[useQRScanner] App focused with granted permission: auto-starting camera');
+          startScanner();
+        }
+      }
+    };
+
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+
+    return () => {
+      isSubscribed = false;
+      if (permStatus) permStatus.onchange = null;
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+    };
+  }, [queryPermissionState, startScanner, stopScanner]);
 
   const switchCamera = useCallback(async () => {
     if (cameras.length < 2) return;
@@ -318,9 +422,7 @@ export function useQRScanner({
           });
           setZoom(clamped);
         }
-      } catch {
-        // Zoom adjustment failed
-      }
+      } catch {}
     },
     [hasZoom, minZoom, maxZoom]
   );
@@ -330,14 +432,11 @@ export function useQRScanner({
     try {
       const track = (scannerRef.current as unknown as { mediaStream?: MediaStream }).mediaStream?.getVideoTracks()[0];
       if (track) {
-        // Re-trigger continuous autofocus to sharpen blurry subject
         await track.applyConstraints({
           advanced: [{ focusMode: 'continuous' } as unknown as MediaTrackConstraintSet],
         });
       }
-    } catch {
-      // Focus not supported
-    }
+    } catch {}
   }, []);
 
   const changeScanMode = useCallback(

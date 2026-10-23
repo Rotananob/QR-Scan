@@ -15,6 +15,7 @@ interface QRScannerProps {
   active?: boolean;
   soundEnabled?: boolean;
   onToggleSound?: () => void;
+  onUploadImage?: () => void;
 }
 
 export const QRScanner: React.FC<QRScannerProps> = ({
@@ -24,6 +25,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
   active = true,
   soundEnabled = true,
   onToggleSound,
+  onUploadImage,
 }) => {
   const { t } = useTranslation();
   const [focusPoint, setFocusPoint] = useState<{ x: number; y: number } | null>(null);
@@ -156,6 +158,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
           error={error}
           onRetry={startScanner}
           onRequestPermission={startScanner}
+          onUploadImage={onUploadImage}
         />
       </div>
 

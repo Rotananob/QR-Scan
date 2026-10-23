@@ -29,6 +29,10 @@ export const UpgradePage: React.FC = () => {
       const raw = localStorage.getItem('qr_active_checkout_session');
       if (raw && !isLifetime && user) {
         const session = JSON.parse(raw);
+        if (session.userId && session.userId !== user.uid) {
+          localStorage.removeItem('qr_active_checkout_session');
+          return;
+        }
         if (session.expiresAt && session.expiresAt > Date.now()) {
           setCheckoutOpen(true);
         }
