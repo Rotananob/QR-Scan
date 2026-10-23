@@ -4,11 +4,10 @@
  * Owner Chat ID: 5969566967
  */
 
-import { sendTelegramMessage } from './_telegram.js';
+import { sendTelegramMessage, getAdminChatIds, setDynamicGroupChatId } from './_telegram.js';
 import { getFirebaseAdmin } from './_firebaseAdmin.js';
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8652045486:AAESDUgU15iP8CbYdLZwGdQBS22sWGo6UxQ';
-const OWNER_CHAT_ID = String(process.env.TELEGRAM_CHAT_ID || '5969566967');
 
 export default async function handler(req, res) {
   // CORS & method verification
@@ -61,8 +60,11 @@ export default async function handler(req, res) {
     const text = message.text.trim();
     const fromUser = message.from?.username || message.from?.first_name || 'User';
 
-    // 1. Strict Owner Authentication
-    if (chatId !== OWNER_CHAT_ID) {
+    // 1. Strict Owner Authentication (Allows 5969566967, 6762495028, and Groups)
+    const adminIds = getAdminChatIds();
+    const isGroup = chatId.startsWith('-');
+
+    if (!adminIds.includes(chatId) && !isGroup) {
       await sendTelegramMessage(
         chatId,
         `⛔ <b>Access Denied</b>\nសូមទោស! គណនី Telegram របស់អ្នក (ID: <code>${chatId}</code>) មិនមានសិទ្ធិបញ្ជា Bot នេះឡើយ។\nមានតែ Admin ផ្លូវការប៉ុណ្ណោះដែលអាចប្រើបាន។`
@@ -90,11 +92,44 @@ export default async function handler(req, res) {
 • <code>/vip email@example.com</code> — ផ្ដល់សិទ្ធិ VIP Lifetime ភ្លាមៗ
 • <code>/revoke email@example.com</code> — ដកសិទ្ធិ VIP ពីគណនី
 • <code>/broadcast សារផ្សាយដំណឹង</code> — ផ្សាយដំណឹងបន្ទាន់ទៅកាន់ App
+• <code>/connect_group</code> — ភ្ជាប់ Bot ទៅកាន់ Group ដើម្បី Alert ចូល Acc ទាំង ២ ព្រមគ្នា
 • <code>/ping</code> — ពិនិត្យស្ថានភាព Server
 ━━━━━━━━━━━━━━━━━━━━
 💡 <i>គ្រាន់តែចុចលើ Command ខាងលើ ឬវាយបញ្ចូលជាការស្រេច!</i>
 `;
         await sendTelegramMessage(chatId, helpMsg);
+        break;
+      }
+
+      case '/connect_group': {
+        const isGroupChat = message.chat?.type === 'group' || message.chat?.type === 'supergroup';
+        if (!isGroupChat) {
+          await sendTelegramMessage(
+            chatId,
+            'ℹ️ <b>របៀបភ្ជាប់ Group Alert:</b>\nសូមបង្កើត Group មួយ រួច Add គណនីថ្មីរបស់អ្នក (6762495028) និង Add Bot នេះចូល រួចវាយ <code>/connect_group</code> ក្នុង Group នោះ!'
+          );
+          break;
+        }
+
+        const groupTitle = message.chat?.title || 'Group Alert';
+        setDynamicGroupChatId(chatId);
+
+        try {
+          await db.collection('config').doc('telegram').set(
+            {
+              groupChatId: chatId,
+              groupTitle,
+              connectedBy: fromUser,
+              connectedAt: FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
+        } catch {}
+
+        await sendTelegramMessage(
+          chatId,
+          `🎉 <b>GROUP ALERT CONNECTED!</b>\n━━━━━━━━━━━━━━━━━━━━\n📌 <b>Group:</b> <b>${groupTitle}</b>\n🆔 <b>Group ID:</b> <code>${chatId}</code>\n🔔 គណនីទាំងអស់ក្នុង Group នេះ (រួមទាំង Acc ថ្មី <code>6762495028</code>) នឹងទទួលបានសារ Alert ស្វ័យប្រវត្តិគ្រប់ពេលវេលា ដោយមិនចាំបាច់ចុច Start លើទូរស័ព្ទថ្មីឡើយ! 🚀`
+        );
         break;
       }
 

@@ -6,7 +6,29 @@
 
 const BOT_TOKEN =
   process.env.TELEGRAM_BOT_TOKEN || '8652045486:AAESDUgU15iP8CbYdLZwGdQBS22sWGo6UxQ';
-const CHAT_ID = process.env.TELEGRAM_CHAT_ID || '5969566967';
+
+export const PRIMARY_CHAT_ID = String(process.env.TELEGRAM_CHAT_ID || '5969566967');
+export const SECONDARY_CHAT_ID = String(process.env.TELEGRAM_SECONDARY_CHAT_ID || '6762495028');
+export const GROUP_CHAT_ID = process.env.TELEGRAM_GROUP_CHAT_ID ? String(process.env.TELEGRAM_GROUP_CHAT_ID) : null;
+
+let dynamicGroupChatId = null;
+
+export function setDynamicGroupChatId(id) {
+  if (id) dynamicGroupChatId = String(id);
+}
+
+export function getAdminChatIds() {
+  const list = [
+    PRIMARY_CHAT_ID,
+    SECONDARY_CHAT_ID,
+    ...(GROUP_CHAT_ID ? [GROUP_CHAT_ID] : []),
+    ...(dynamicGroupChatId ? [dynamicGroupChatId] : []),
+  ];
+  return Array.from(new Set(list));
+}
+
+// Multi-Account Alert Dispatch List
+export const ADMIN_CHAT_IDS = getAdminChatIds();
 
 /**
  * Sends an HTML-formatted message to a specific Telegram Chat ID
@@ -23,7 +45,7 @@ export async function sendTelegramMessage(targetChatId, messageHtml, disableWebP
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        chat_id: targetChatId || CHAT_ID,
+        chat_id: targetChatId || PRIMARY_CHAT_ID,
         text: messageHtml,
         parse_mode: 'HTML',
         disable_web_page_preview: disableWebPagePreview,
@@ -33,21 +55,26 @@ export async function sendTelegramMessage(targetChatId, messageHtml, disableWebP
 
     const data = await res.json();
     if (!data.ok) {
-      console.warn('[TelegramAlert] Send failed:', data.description);
+      console.warn(`[TelegramAlert] Send to ${targetChatId} failed:`, data.description);
       return false;
     }
     return true;
   } catch (err) {
-    console.warn('[TelegramAlert] Network error:', err.message);
+    console.warn(`[TelegramAlert] Network error for ${targetChatId}:`, err.message);
     return false;
   }
 }
 
 /**
- * Sends an HTML-formatted message to the default Admin Telegram Bot Chat
+ * Broadcasts an HTML-formatted alert to ALL Admin Telegram Accounts simultaneously
  */
 export async function sendTelegramAlert(messageHtml, disableWebPagePreview = true) {
-  return sendTelegramMessage(CHAT_ID, messageHtml, disableWebPagePreview);
+  const targetIds = getAdminChatIds();
+  const promises = targetIds.map((targetId) =>
+    sendTelegramMessage(targetId, messageHtml, disableWebPagePreview)
+  );
+  const results = await Promise.allSettled(promises);
+  return results.some((r) => r.status === 'fulfilled' && r.value === true);
 }
 
 /**
