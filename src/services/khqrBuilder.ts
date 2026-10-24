@@ -83,15 +83,11 @@ export function generateClientKhqr(options: BuildClientKhqrOptions): string {
   // Tag 60: Merchant City
   payload += formatTlv('60', city);
 
-  // Tag 62: Additional Data (Bill Number / Terminal / PayWay)
-  if (options.billNumber || options.terminalId || abaAccount) {
+  // Tag 62: Additional Data (Bill Number / Terminal)
+  if (options.billNumber || options.terminalId) {
     let sub62 = '';
     if (options.billNumber) sub62 += formatTlv('01', options.billNumber);
     if (options.terminalId) sub62 += formatTlv('07', options.terminalId);
-    if (abaAccount) {
-      sub62 += formatTlv('03', '5506511');
-      sub62 += formatTlv('51', 'PAYWAY@ABA');
-    }
     payload += formatTlv('62', sub62);
   }
 

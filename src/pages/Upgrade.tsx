@@ -25,6 +25,11 @@ export const UpgradePage: React.FC = () => {
 
   // Auto-restore checkout modal if unexpired pending session exists
   useEffect(() => {
+    if (isLifetime) {
+      setCheckoutOpen(false);
+      try { localStorage.removeItem('qr_active_checkout_session'); } catch {}
+      return;
+    }
     try {
       const raw = localStorage.getItem('qr_active_checkout_session');
       if (raw && !isLifetime && user) {
@@ -41,6 +46,7 @@ export const UpgradePage: React.FC = () => {
   }, [isLifetime, user]);
 
   const handleCtaClick = () => {
+    if (isLifetime) return;
     if (!user) {
       // User is not authenticated -> redirect to login/register first!
       navigate('/auth?redirect=/upgrade');
@@ -295,7 +301,7 @@ export const UpgradePage: React.FC = () => {
 
       {/* Checkout Modal */}
       <CheckoutModal
-        isOpen={checkoutOpen}
+        isOpen={checkoutOpen && !isLifetime}
         onClose={() => setCheckoutOpen(false)}
         defaultAmount={3.00}
         currency="USD"

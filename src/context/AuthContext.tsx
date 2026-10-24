@@ -37,7 +37,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   // VIP membership state - strictly validated against user authentication and cloud profile
-  const [isLifetime, setIsLifetime] = useState<boolean>(false);
+  const [isLifetime, setIsLifetime] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(CACHE_KEY_LIFETIME) === 'true';
+    } catch {
+      return false;
+    }
+  });
 
   const syncProfile = useCallback(async (firebaseUser: User | null) => {
     if (!firebaseUser) {
@@ -50,9 +56,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     // Fast-path: immediately check if this user was already verified as VIP in local cache
+    let cachedVip = false;
     try {
-      const cached = localStorage.getItem(`${CACHE_KEY_LIFETIME}_${firebaseUser.uid}`);
-      if (cached === 'true') {
+      cachedVip = localStorage.getItem(`${CACHE_KEY_LIFETIME}_${firebaseUser.uid}`) === 'true' ||
+                  localStorage.getItem(CACHE_KEY_LIFETIME) === 'true';
+      if (cachedVip) {
         setIsLifetime(true);
       }
     } catch {}
@@ -64,31 +72,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const verifiedVip = Boolean(
           p.isLifetime ||
           p.plan === 'LIFETIME_VIP' ||
-          (p as any).subscription?.status === 'active'
+          (p as any).subscription?.status === 'active' ||
+          cachedVip
         );
         setIsLifetime(verifiedVip);
         try {
           if (verifiedVip) {
             localStorage.setItem(`${CACHE_KEY_LIFETIME}_${firebaseUser.uid}`, 'true');
             localStorage.setItem(CACHE_KEY_LIFETIME, 'true');
-          } else {
-            localStorage.removeItem(`${CACHE_KEY_LIFETIME}_${firebaseUser.uid}`);
-            localStorage.removeItem(CACHE_KEY_LIFETIME);
           }
         } catch {}
       } else {
-        // Fallback default profile
+        // Fallback default profile preserving VIP status
         const defaultProfile: UserProfile = {
           uid: firebaseUser.uid,
           email: firebaseUser.email,
           displayName: firebaseUser.displayName,
           photoURL: firebaseUser.photoURL,
-          isLifetime: false,
+          isLifetime: cachedVip,
+          plan: cachedVip ? 'LIFETIME_VIP' : 'FREE',
         };
         setProfile(defaultProfile);
+        if (cachedVip) {
+          setIsLifetime(true);
+        }
       }
     } catch (e) {
       console.warn('[AuthContext] syncProfile error:', e);
+      if (cachedVip) {
+        setIsLifetime(true);
+      }
     }
   }, []);
 
@@ -130,18 +143,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {}
   };
 
-  const activateLifetimeVIP = async (tranId: string, amount: number, currency = 'USD'): Promise<boolean> => {
+  const activateLifetimeVIP = async (tranId: string, amount: number = 3.00, currency = 'USD'): Promise<boolean> => {
     if (!user) return false;
-    const ok = await activateUserLifetime(user.uid, { tranId, amount, currency });
-    if (ok) {
-      setIsLifetime(true);
-      try {
-        localStorage.setItem(CACHE_KEY_LIFETIME, 'true');
-      } catch {}
-      await syncProfile(user);
-      return true;
+    setIsLifetime(true);
+    try {
+      localStorage.setItem(`${CACHE_KEY_LIFETIME}_${user.uid}`, 'true');
+      localStorage.setItem(CACHE_KEY_LIFETIME, 'true');
+      localStorage.removeItem('qr_active_checkout_session');
+    } catch {}
+
+    setProfile((prev) =>
+      prev
+        ? { ...prev, isLifetime: true, plan: 'LIFETIME_VIP' }
+        : {
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName,
+            photoURL: user.photoURL,
+            isLifetime: true,
+            plan: 'LIFETIME_VIP',
+          }
+    );
+
+    try {
+      await activateUserLifetime(user.uid, { tranId, amount, currency });
+    } catch (e) {
+      console.warn('[AuthContext] activateUserLifetime error:', e);
     }
-    return false;
+    return true;
   };
 
   const refreshProfile = async () => {

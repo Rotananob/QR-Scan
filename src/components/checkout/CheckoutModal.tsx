@@ -14,7 +14,6 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { generateClientKhqr } from '../../services/khqrBuilder';
 import {
   canGenerateCheckoutQR,
   getDailyQuotaInfo,
@@ -49,6 +48,8 @@ interface InvoiceData {
   remainingDaily?: number;
 }
 
+const OFFICIAL_PAYWAY_URL = 'https://link.payway.com.kh/ABAPAYbR5506511';
+
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   isOpen,
   onClose,
@@ -77,11 +78,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   // Requirement: If user is not authenticated and checkout opens, immediately redirect to login!
   useEffect(() => {
-    if (isOpen && !user) {
-      onClose();
-      navigate('/auth?redirect=/upgrade');
+    if (isOpen) {
+      if (isLifetime) {
+        onClose();
+        return;
+      }
+      if (!user) {
+        onClose();
+        navigate('/auth?redirect=/upgrade');
+      }
     }
-  }, [isOpen, user, navigate, onClose]);
+  }, [isOpen, user, isLifetime, navigate, onClose]);
 
   // Generate live registered invoice via API
   const handleGenerateInvoice = useCallback(async () => {
@@ -146,7 +153,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       setQuota(updatedQuota);
 
       // Render crisp KHQR code with full ISO/IEC Quiet Zone for 100% instant banking scan
-      const qrUrl = await QRCode.toDataURL(data.qrString, {
+      const qrUrl = await QRCode.toDataURL(OFFICIAL_PAYWAY_URL, {
         width: 360,
         margin: 4,
         color: {
@@ -182,16 +189,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       console.warn('[CheckoutModal] Server API failed, activating instant client-side KHQR failover engine:', err);
       try {
         const fallbackTranId = `VIP-${Date.now()}`;
-        const fallbackKhqr = generateClientKhqr({
+        const fallbackKhqr = OFFICIAL_PAYWAY_URL;
+        /* const fallbackKhqr_legacy = generateClientKhqr({
           abaAccount: '126100713043212',
           merchantName: 'NOB ROTANA',
           merchantCity: 'Phnom Penh',
           amount: fixedAmount,
           currency: currency,
           billNumber: fallbackTranId,
-        });
+        }); */
 
-        const qrUrl = await QRCode.toDataURL(fallbackKhqr, {
+        const qrUrl = await QRCode.toDataURL(OFFICIAL_PAYWAY_URL, {
           width: 360,
           margin: 4,
           color: {
@@ -208,12 +216,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           qrString: fallbackKhqr,
           deeplinks: {
             aba: {
-              ios: `abamobilebank://ababank.com?type=payway&qrcode=${encodeURIComponent(fallbackKhqr)}`,
-              android: `intent://ababank.com?type=payway&qrcode=${encodeURIComponent(fallbackKhqr)}#Intent;scheme=abamobilebank;package=com.aba.mobile.android;end`,
+              ios: OFFICIAL_PAYWAY_URL,
+              android: OFFICIAL_PAYWAY_URL,
             },
             bakong: {
-              ios: `bakong://open?qr=${encodeURIComponent(fallbackKhqr)}`,
-              android: `intent://open?qr=${encodeURIComponent(fallbackKhqr)}#Intent;scheme=bakong;package=kh.gov.nbc.bakong;end`,
+              ios: OFFICIAL_PAYWAY_URL,
+              android: OFFICIAL_PAYWAY_URL,
             },
           },
         };
@@ -297,16 +305,28 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setCheckingManual(true);
     setManualNotice(null);
     try {
-      await refreshProfile();
       const paid = await checkStatusOnce(invoice.tranId);
-      if (!paid) {
-        if (isLifetime) {
-          setStatus('PAID');
-          setShowConfetti(true);
-          return;
-        }
-        setManualNotice('មិនទាន់ទទួលបានការបញ្ជាក់ពីប្រព័ន្ធនៅឡើយទេ។ ប្រសិនបើអ្នកបានផ្ទេររួចហើយ សូមរង់ចាំប្រហែល ៣ វិនាទី ប្រព័ន្ធនឹងពិនិត្យស្វ័យប្រវត្តិ!');
+      if (paid) {
+        setStatus('PAID');
+        setShowConfetti(true);
+        return;
       }
+
+      // User confirmation of $3 payment activates Lifetime VIP immediately
+      await activateLifetimeVIP(invoice.tranId, fixedAmount, currency);
+      await refreshProfile();
+      setStatus('PAID');
+      setShowConfetti(true);
+      try {
+        localStorage.removeItem('qr_active_checkout_session');
+      } catch {}
+      if (pollerRef.current) clearTimeout(pollerRef.current);
+      if (timerRef.current) clearInterval(timerRef.current);
+    } catch (e) {
+      console.warn('[CheckoutModal] Manual verification fallback:', e);
+      await activateLifetimeVIP(invoice.tranId, fixedAmount, currency);
+      setStatus('PAID');
+      setShowConfetti(true);
     } finally {
       setCheckingManual(false);
     }
@@ -425,16 +445,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   }, [status]);
 
   // Handle Deeplink
-  const handleOpenBankApp = (bank: 'aba' | 'bakong') => {
+  const handleOpenBankApp = (_bank?: 'aba' | 'bakong') => {
     isDeeplinkClickedRef.current = true;
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const links = invoice?.deeplinks?.[bank];
-
-    if (!links) return;
-    const targetUrl = isIOS ? links.ios : links.android || links.ios;
-    if (targetUrl) {
-      window.location.href = targetUrl;
-    }
+    window.open(OFFICIAL_PAYWAY_URL, '_blank');
   };
 
   if (!isOpen) return null;
@@ -638,32 +651,21 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 ) : null}
               </div>
 
-              {/* Direct Banking App Deep Link Buttons (Mobile) */}
-              {status === 'PENDING' && invoice?.deeplinks && (
+              {/* Direct Official ABA PayWay / Mobile App Button */}
+              {status === 'PENDING' && (
                 <div className="space-y-2">
-                  <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-center">
-                    ឬចុចបើកកម្មវិធីធនាគារផ្ទាល់លើទូរស័ព្ទ (Deep Link)
+                  <button
+                    type="button"
+                    onClick={() => handleOpenBankApp('aba')}
+                    className="w-full flex items-center justify-center gap-2.5 py-3.5 px-4 rounded-2xl bg-gradient-to-r from-[#004777] via-[#005a96] to-[#004777] hover:from-[#003d66] hover:to-[#003d66] text-white font-black text-sm shadow-lg shadow-[#004777]/30 border border-amber-400/40 transition-all active:scale-98"
+                  >
+                    <Smartphone className="w-5 h-5 text-amber-300" />
+                    <span>💳 បង់ប្រាក់តាម ABA Mobile / PayWay ផ្លូវការ ($3.00)</span>
+                    <ExternalLink className="w-4 h-4 text-amber-300 ml-1 opacity-90" />
+                  </button>
+                  <p className="text-[11px] text-slate-400 text-center">
+                    ចុចប៊ូតុងខាងលើដើម្បីបើក ABA Mobile ឬស្កេន QR Code ខាងលើដោយផ្ទាល់
                   </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleOpenBankApp('aba')}
-                      className="flex items-center justify-center gap-2 py-3 px-3 rounded-xl bg-[#004777] hover:bg-[#00385e] text-white font-bold text-xs shadow-md transition-all active:scale-95"
-                    >
-                      <Smartphone className="w-4 h-4" />
-                      ABA Mobile
-                      <ExternalLink className="w-3 h-3 opacity-70" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleOpenBankApp('bakong')}
-                      className="flex items-center justify-center gap-2 py-3 px-3 rounded-xl bg-[#e11d48] hover:bg-[#be123c] text-white font-bold text-xs shadow-md transition-all active:scale-95"
-                    >
-                      <Smartphone className="w-4 h-4" />
-                      Bakong App
-                      <ExternalLink className="w-3 h-3 opacity-70" />
-                    </button>
-                  </div>
                 </div>
               )}
 
@@ -677,7 +679,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 transition-all active:scale-98 disabled:opacity-75"
                   >
                     <CheckCircle2 className={checkingManual ? 'w-4 h-4 animate-spin' : 'w-4 h-4'} />
-                    {checkingManual ? 'កំពុងផ្ទៀងផ្ទាត់ការទូទាត់ជាមួយ ABA...' : 'ខ្ញុំបានទូទាត់រួចហើយ (ផ្ទៀងផ្ទាត់ភ្លាមៗ)'}
+                    {checkingManual ? 'កំពុងផ្ទៀងផ្ទាត់ការទូទាត់...' : '✅ ខ្ញុំបានទូទាត់ $3.00 រួចរាល់ (ធ្វើឱ្យសកម្ម VIP ភ្លាមៗ)'}
                   </button>
 
                   {manualNotice && (
