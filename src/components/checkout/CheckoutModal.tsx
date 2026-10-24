@@ -153,7 +153,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       setQuota(updatedQuota);
 
       // Render crisp KHQR code with full ISO/IEC Quiet Zone for 100% instant banking scan
-      const qrUrl = await QRCode.toDataURL(OFFICIAL_PAYWAY_URL, {
+      const qrTarget = data.qrString || OFFICIAL_PAYWAY_URL;
+      const qrUrl = await QRCode.toDataURL(qrTarget, {
         width: 360,
         margin: 4,
         color: {
@@ -199,7 +200,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           billNumber: fallbackTranId,
         }); */
 
-        const qrUrl = await QRCode.toDataURL(OFFICIAL_PAYWAY_URL, {
+        const qrTarget = fallbackKhqr || OFFICIAL_PAYWAY_URL;
+        const qrUrl = await QRCode.toDataURL(qrTarget, {
           width: 360,
           margin: 4,
           color: {
@@ -311,22 +313,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         setShowConfetti(true);
         return;
       }
-
-      // User confirmation of $3 payment activates Lifetime VIP immediately
-      await activateLifetimeVIP(invoice.tranId, fixedAmount, currency);
-      await refreshProfile();
-      setStatus('PAID');
-      setShowConfetti(true);
-      try {
-        localStorage.removeItem('qr_active_checkout_session');
-      } catch {}
-      if (pollerRef.current) clearTimeout(pollerRef.current);
-      if (timerRef.current) clearInterval(timerRef.current);
+      setManualNotice('មិនទាន់ទទួលបានការទូទាត់ទេ! ប្រសិនបើអ្នកបានផ្ទេរ $3.00 រួចហើយ សូមរង់ចាំបន្តិច ប្រព័ន្ធកំពុងផ្ទៀងផ្ទាត់ស្វ័យប្រវត្តិតាមធនាគារ ABA។');
     } catch (e) {
-      console.warn('[CheckoutModal] Manual verification fallback:', e);
-      await activateLifetimeVIP(invoice.tranId, fixedAmount, currency);
-      setStatus('PAID');
-      setShowConfetti(true);
+      console.warn('[CheckoutModal] Manual verification check error:', e);
+      setManualNotice('មានបញ្ហាក្នុងការតភ្ជាប់ផ្ទៀងផ្ទាត់។ សូមព្យាយាមម្តងទៀត។');
     } finally {
       setCheckingManual(false);
     }
@@ -445,8 +435,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   }, [status]);
 
   // Handle Deeplink
-  const handleOpenBankApp = (_bank?: 'aba' | 'bakong') => {
+  const handleOpenBankApp = (bank: 'aba' | 'bakong') => {
     isDeeplinkClickedRef.current = true;
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const links = invoice?.deeplinks?.[bank];
+
+    if (links) {
+      const targetUrl = isIOS ? links.ios : links.android || links.ios;
+      if (targetUrl) {
+        window.location.href = targetUrl;
+        return;
+      }
+    }
     window.open(OFFICIAL_PAYWAY_URL, '_blank');
   };
 
@@ -651,39 +651,50 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 ) : null}
               </div>
 
-              {/* Direct Official ABA PayWay / Mobile App Button */}
+              {/* Direct Banking App Deep Link Buttons (Mobile) */}
               {status === 'PENDING' && (
                 <div className="space-y-2">
-                  <button
-                    type="button"
-                    onClick={() => handleOpenBankApp('aba')}
-                    className="w-full flex items-center justify-center gap-2.5 py-3.5 px-4 rounded-2xl bg-gradient-to-r from-[#004777] via-[#005a96] to-[#004777] hover:from-[#003d66] hover:to-[#003d66] text-white font-black text-sm shadow-lg shadow-[#004777]/30 border border-amber-400/40 transition-all active:scale-98"
-                  >
-                    <Smartphone className="w-5 h-5 text-amber-300" />
-                    <span>💳 បង់ប្រាក់តាម ABA Mobile / PayWay ផ្លូវការ ($3.00)</span>
-                    <ExternalLink className="w-4 h-4 text-amber-300 ml-1 opacity-90" />
-                  </button>
-                  <p className="text-[11px] text-slate-400 text-center">
-                    ចុចប៊ូតុងខាងលើដើម្បីបើក ABA Mobile ឬស្កេន QR Code ខាងលើដោយផ្ទាល់
+                  <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-center">
+                    ឬចុចបើកកម្មវិធីធនាគារផ្ទាល់លើទូរស័ព្ទ (Deep Link)
                   </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenBankApp('aba')}
+                      className="flex items-center justify-center gap-2 py-3 px-3 rounded-xl bg-[#004777] hover:bg-[#00385e] text-white font-bold text-xs shadow-md transition-all active:scale-95"
+                    >
+                      <Smartphone className="w-4 h-4" />
+                      ABA Mobile
+                      <ExternalLink className="w-3 h-3 opacity-70" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenBankApp('bakong')}
+                      className="flex items-center justify-center gap-2 py-3 px-3 rounded-xl bg-[#e11d48] hover:bg-[#be123c] text-white font-bold text-xs shadow-md transition-all active:scale-95"
+                    >
+                      <Smartphone className="w-4 h-4" />
+                      Bakong App
+                      <ExternalLink className="w-3 h-3 opacity-70" />
+                    </button>
+                  </div>
                 </div>
               )}
 
-              {/* Instant Manual Verify Payment Button */}
+              {/* Secure Manual Verification Button (Strict Banking Check Only - NO BYPASS) */}
               {status === 'PENDING' && (
                 <div className="space-y-2">
                   <button
                     type="button"
                     disabled={checkingManual}
                     onClick={handleManualVerify}
-                    className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 transition-all active:scale-98 disabled:opacity-75"
+                    className="w-full py-3 px-4 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 font-bold text-xs shadow-md flex items-center justify-center gap-2 transition-all active:scale-98 disabled:opacity-75"
                   >
-                    <CheckCircle2 className={checkingManual ? 'w-4 h-4 animate-spin' : 'w-4 h-4'} />
-                    {checkingManual ? 'កំពុងផ្ទៀងផ្ទាត់ការទូទាត់...' : '✅ ខ្ញុំបានទូទាត់ $3.00 រួចរាល់ (ធ្វើឱ្យសកម្ម VIP ភ្លាមៗ)'}
+                    <RotateCw className={checkingManual ? 'w-4 h-4 animate-spin' : 'w-4 h-4'} />
+                    {checkingManual ? 'កំពុងផ្ទៀងផ្ទាត់ជាមួយធនាគារ ABA...' : '🔄 ពិនិត្យស្ថានភាពការទូទាត់ឡើងវិញ (Check Status)'}
                   </button>
 
                   {manualNotice && (
-                    <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/40 text-[11px] text-amber-800 dark:text-amber-300 text-center leading-relaxed">
+                    <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/40 text-[11px] text-amber-800 dark:text-amber-300 text-center leading-relaxed">
                       {manualNotice}
                     </div>
                   )}

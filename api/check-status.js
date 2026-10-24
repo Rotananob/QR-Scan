@@ -210,10 +210,10 @@ export default async function handler(req, res) {
     }
 
     // 5. Query PayWay check-payment-status with authentic tokens & __cf_bm cookie
-    const activeToken = token || session?.token;
-    const activeClientId = clientId || session?.clientId;
-    const activeDeviceId = deviceId || session?.deviceId;
-    const activeRequestTime = requestTime || session?.requestTime || Date.now().toString();
+    const activeToken = session?.token || token;
+    const activeClientId = session?.clientId || clientId;
+    const activeDeviceId = session?.deviceId || deviceId;
+    const activeRequestTime = session?.requestTime || requestTime || Date.now().toString();
     const activeCookie = session?.cookieJar || globalCfCookieJar;
 
     if (activeToken && activeClientId && activeDeviceId) {

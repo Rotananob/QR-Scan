@@ -181,19 +181,6 @@ function buildAbaKhqr(amount = 3.00, currency = 'USD', billNumber = '') {
  * Creates live registered PayWay invoice with resilient retry and fallback
  */
 async function createLivePaywayInvoice(amount = 3.00, currency = 'USD') {
-  // Always use the official ABA PayWay link as primary QR string to eliminate any invalid QR merchant errors
-  const qrString = CHECKOUT_URL;
-  const deeplinks = {
-    aba: {
-      ios: CHECKOUT_URL,
-      android: CHECKOUT_URL,
-    },
-    bakong: {
-      ios: CHECKOUT_URL,
-      android: CHECKOUT_URL,
-    },
-  };
-
   try {
     const session = await getPaywaySession();
     const addFields = JSON.stringify({ amount: Number(amount).toFixed(2) });
@@ -221,7 +208,7 @@ async function createLivePaywayInvoice(amount = 3.00, currency = 'USD') {
         hash,
         request_time: session.requestTime,
       }),
-      signal: AbortSignal.timeout(2500),
+      signal: AbortSignal.timeout(5000),
     });
 
     globalCfCookieJar = mergeCookies(globalCfCookieJar, listRes);
@@ -231,9 +218,11 @@ async function createLivePaywayInvoice(amount = 3.00, currency = 'USD') {
       listJson = JSON.parse(listText);
     } catch {}
 
-    if (listRes.status === 200 && listJson?.token) {
+    if (listRes.status === 200 && listJson?.token && listJson?.qr_string) {
       const tranId = String(listJson.status?.tran_id || listJson.tran_id || `TRX-${Date.now()}`);
+      const qrString = listJson.qr_string;
       const deviceId = generateRandomDeviceId(10);
+      const deeplinks = buildBankDeeplinks(qrString);
 
       return {
         tranId,
@@ -243,7 +232,6 @@ async function createLivePaywayInvoice(amount = 3.00, currency = 'USD') {
         requestTime: session.requestTime,
         qrString,
         paywayUrl: CHECKOUT_URL,
-        rawPaywayQr: listJson.qr_string,
         deeplinks,
         cookieJar: globalCfCookieJar,
         amount: Number(amount),
@@ -255,10 +243,11 @@ async function createLivePaywayInvoice(amount = 3.00, currency = 'USD') {
     console.warn('[Checkout] Live PayWay attempt warning:', liveErr.message);
   }
 
-  // Resilient Failover: Official verified ABA merchant URL
-  console.log('[Checkout] Activating official ABA PayWay link failover...');
+  // Resilient Failover: Authentic Tag 30 EMVCo KHQR synthesis
+  console.log('[Checkout] Activating native ABA KHQR failover engine...');
   const tranId = `VIP-${Date.now()}`;
   const rawKhqr = buildAbaKhqr(amount, currency, tranId);
+  const deeplinks = buildBankDeeplinks(rawKhqr);
 
   return {
     tranId,
@@ -266,14 +255,13 @@ async function createLivePaywayInvoice(amount = 3.00, currency = 'USD') {
     clientId: '5506511',
     deviceId: generateRandomDeviceId(10),
     requestTime: Date.now().toString(),
-    qrString,
+    qrString: rawKhqr,
     paywayUrl: CHECKOUT_URL,
-    rawPaywayQr: rawKhqr,
     deeplinks,
     cookieJar: globalCfCookieJar,
     amount: Number(amount),
     currency,
-    source: 'aba_official_link',
+    source: 'aba_native_failover',
   };
 }
 
