@@ -183,8 +183,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       try {
         const fallbackTranId = `VIP-${Date.now()}`;
         const fallbackKhqr = generateClientKhqr({
-          bakongId: 'rotana@abab',
-          merchantName: 'ROTANA NOBB',
+          abaAccount: '126100713043212',
+          merchantName: 'NOB ROTANA',
           merchantCity: 'Phnom Penh',
           amount: fixedAmount,
           currency: currency,

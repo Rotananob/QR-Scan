@@ -64,15 +64,21 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
     const snap = await getDoc(userDocRef);
     if (snap.exists()) {
       const data = snap.data();
+      const isVip = Boolean(
+        data.isLifetime === true ||
+        data.plan === 'LIFETIME_VIP' ||
+        data.subscription?.status === 'active' ||
+        data.subscription?.plan === 'lifetime'
+      );
       return {
         uid,
         email: data.email || null,
         displayName: data.displayName || null,
         photoURL: data.photoURL || null,
-        isLifetime: Boolean(data.isLifetime),
-        plan: data.plan || 'FREE',
-        upgradedAt: data.upgradedAt ? (data.upgradedAt.toMillis ? data.upgradedAt.toMillis() : data.upgradedAt) : null,
-        tranId: data.tranId || null,
+        isLifetime: isVip,
+        plan: isVip ? 'LIFETIME_VIP' : (data.plan || 'FREE'),
+        upgradedAt: data.upgradedAt ? (data.upgradedAt.toMillis ? data.upgradedAt.toMillis() : data.upgradedAt) : (data.vipActivatedAt ? (data.vipActivatedAt.toMillis ? data.vipActivatedAt.toMillis() : data.vipActivatedAt) : null),
+        tranId: data.tranId || data.lastTranId || null,
         amount: data.amount || null,
         currency: data.currency || null,
       };

@@ -49,15 +49,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
+    // Fast-path: immediately check if this user was already verified as VIP in local cache
+    try {
+      const cached = localStorage.getItem(`${CACHE_KEY_LIFETIME}_${firebaseUser.uid}`);
+      if (cached === 'true') {
+        setIsLifetime(true);
+      }
+    } catch {}
+
     try {
       const p = await getUserProfile(firebaseUser.uid);
       if (p) {
         setProfile(p);
-        const verifiedVip = Boolean(p.isLifetime);
+        const verifiedVip = Boolean(
+          p.isLifetime ||
+          p.plan === 'LIFETIME_VIP' ||
+          (p as any).subscription?.status === 'active'
+        );
         setIsLifetime(verifiedVip);
         try {
           if (verifiedVip) {
             localStorage.setItem(`${CACHE_KEY_LIFETIME}_${firebaseUser.uid}`, 'true');
+            localStorage.setItem(CACHE_KEY_LIFETIME, 'true');
           } else {
             localStorage.removeItem(`${CACHE_KEY_LIFETIME}_${firebaseUser.uid}`);
             localStorage.removeItem(CACHE_KEY_LIFETIME);
@@ -73,11 +86,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           isLifetime: false,
         };
         setProfile(defaultProfile);
-        setIsLifetime(false);
       }
     } catch (e) {
       console.warn('[AuthContext] syncProfile error:', e);
-      setIsLifetime(false);
     }
   }, []);
 
@@ -139,7 +150,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const verifiedIsLifetime = Boolean(user && isLifetime && profile?.isLifetime);
+  const verifiedIsLifetime = Boolean(
+    user && (
+      isLifetime ||
+      profile?.isLifetime ||
+      profile?.plan === 'LIFETIME_VIP' ||
+      (typeof window !== 'undefined' && localStorage.getItem(`${CACHE_KEY_LIFETIME}_${user.uid}`) === 'true')
+    )
+  );
 
   return (
     <AuthContext.Provider

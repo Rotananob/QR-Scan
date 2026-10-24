@@ -26,7 +26,8 @@ export function computeKhqrCrc16(data: string): string {
 }
 
 export interface BuildClientKhqrOptions {
-  bakongId: string;
+  bakongId?: string;
+  abaAccount?: string;
   merchantName: string;
   merchantCity?: string;
   amount?: number;
@@ -36,8 +37,9 @@ export interface BuildClientKhqrOptions {
 }
 
 export function generateClientKhqr(options: BuildClientKhqrOptions): string {
-  const bakongId = options.bakongId.trim();
-  const merchantName = options.merchantName.trim().toUpperCase() || 'MERCHANT';
+  const bakongId = (options.bakongId || '').trim();
+  const abaAccount = (options.abaAccount || '').trim();
+  const merchantName = options.merchantName.trim().toUpperCase() || 'NOB ROTANA';
   const city = (options.merchantCity || 'Phnom Penh').trim();
   const currency = options.currency || 'USD';
   const currencyCode = currency === 'KHR' ? '116' : '840';
@@ -49,12 +51,19 @@ export function generateClientKhqr(options: BuildClientKhqrOptions): string {
   const isDynamic = typeof options.amount === 'number' && options.amount > 0;
   payload += formatTlv('01', isDynamic ? '12' : '11');
 
-  // Tag 29: Merchant Account Information (Bakong ID format: tag 00 = accountId)
-  const subtag00 = formatTlv('00', bakongId);
-  payload += formatTlv('29', subtag00);
+  // Tag 30 (ABA Bank Direct Acquiring) or Tag 29 (General Bakong)
+  if (abaAccount) {
+    const sub00 = formatTlv('00', 'abaakhppxxx@abaa');
+    const sub01 = formatTlv('01', abaAccount);
+    const sub02 = formatTlv('02', 'ABA Bank');
+    payload += formatTlv('30', `${sub00}${sub01}${sub02}`);
+  } else if (bakongId) {
+    const subtag00 = formatTlv('00', bakongId);
+    payload += formatTlv('29', subtag00);
+  }
 
-  // Tag 52: Merchant Category Code ('5999' = General)
-  payload += formatTlv('52', '5999');
+  // Tag 52: Merchant Category Code ('4814' for PayWay telecomm/services, '5999' for General)
+  payload += formatTlv('52', abaAccount ? '4814' : '5999');
 
   // Tag 53: Transaction Currency (840 for USD, 116 for KHR)
   payload += formatTlv('53', currencyCode);
@@ -74,11 +83,15 @@ export function generateClientKhqr(options: BuildClientKhqrOptions): string {
   // Tag 60: Merchant City
   payload += formatTlv('60', city);
 
-  // Tag 62: Additional Data (Bill Number / Terminal)
-  if (options.billNumber || options.terminalId) {
+  // Tag 62: Additional Data (Bill Number / Terminal / PayWay)
+  if (options.billNumber || options.terminalId || abaAccount) {
     let sub62 = '';
     if (options.billNumber) sub62 += formatTlv('01', options.billNumber);
     if (options.terminalId) sub62 += formatTlv('07', options.terminalId);
+    if (abaAccount) {
+      sub62 += formatTlv('03', '5506511');
+      sub62 += formatTlv('51', 'PAYWAY@ABA');
+    }
     payload += formatTlv('62', sub62);
   }
 

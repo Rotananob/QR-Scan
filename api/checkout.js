@@ -141,6 +141,44 @@ async function getPaywaySession(forceRefresh = false) {
   return cachedSession;
 }
 
+function formatTlv(tag, val) {
+  const len = Buffer.byteLength(val).toString().padStart(2, '0');
+  return `${tag}${len}${val}`;
+}
+
+function computeKhqrCrc16(data) {
+  let crc = 0xffff;
+  for (let i = 0; i < data.length; i++) {
+    crc ^= data.charCodeAt(i) << 8;
+    for (let j = 0; j < 8; j++) {
+      if ((crc & 0x8000) !== 0) crc = ((crc << 1) ^ 0x1021) & 0xffff;
+      else crc = (crc << 1) & 0xffff;
+    }
+  }
+  return crc.toString(16).toUpperCase().padStart(4, '0');
+}
+
+function buildAbaKhqr(amount = 3.00, currency = 'USD', billNumber = '') {
+  let p = formatTlv('00', '01') + formatTlv('01', '12');
+  const sub00 = formatTlv('00', 'abaakhppxxx@abaa');
+  const sub01 = formatTlv('01', '126100713043212');
+  const sub02 = formatTlv('02', 'ABA Bank');
+  p += formatTlv('30', `${sub00}${sub01}${sub02}`);
+  p += formatTlv('52', '4814');
+  p += formatTlv('53', currency === 'KHR' ? '116' : '840');
+  p += formatTlv('54', Number(amount).toFixed(2));
+  p += formatTlv('58', 'KH');
+  p += formatTlv('59', 'NOB ROTANA');
+  p += formatTlv('60', 'PHNOM PENH');
+  let sub62 = '';
+  if (billNumber) sub62 += formatTlv('01', billNumber);
+  sub62 += formatTlv('03', '5506511');
+  sub62 += formatTlv('51', 'PAYWAY@ABA');
+  p += formatTlv('62', sub62);
+  const crcIn = p + '6304';
+  return crcIn + computeKhqrCrc16(crcIn);
+}
+
 /**
  * Creates live registered PayWay invoice with resilient retry and fallback
  */
@@ -206,30 +244,24 @@ async function createLivePaywayInvoice(amount = 3.00, currency = 'USD') {
     console.warn('[Checkout] Live PayWay attempt warning:', liveErr.message);
   }
 
-  // Resilient Failover: Native in-memory KHQR synthesis via pay-helper
-  console.log('[Checkout] Activating pay-helper native KHQR failover engine...');
+  // Resilient Failover: Native in-memory authentic ABA KHQR synthesis
+  console.log('[Checkout] Activating native ABA PayWay KHQR failover engine...');
   const tranId = `VIP-${Date.now()}`;
-  const nativePayment = createPayment({
-    bakongId: 'rotana@abab',
-    merchantName: 'ROTANA NOBB',
-    merchantCity: 'Phnom Penh',
-    amount: Number(amount),
-    currency,
-    billNumber: tranId,
-  });
+  const qrString = buildAbaKhqr(amount, currency, tranId);
+  const deeplinks = buildBankDeeplinks(qrString);
 
   return {
     tranId,
-    token: nativePayment.md5,
+    token: crypto.createHash('md5').update(qrString).digest('hex'),
     clientId: '5506511',
     deviceId: generateRandomDeviceId(10),
     requestTime: Date.now().toString(),
-    qrString: nativePayment.qrString,
-    deeplinks: nativePayment.deeplinks,
+    qrString,
+    deeplinks,
     cookieJar: globalCfCookieJar,
     amount: Number(amount),
     currency,
-    source: 'pay_helper_native',
+    source: 'aba_native_failover',
   };
 }
 

@@ -102,74 +102,108 @@ export const UpgradePage: React.FC = () => {
           </h1>
 
           <p className="text-sm sm:text-base text-slate-300">
-            ទូទាត់តែម្តង ប្រើប្រាស់មុខងារកម្រិតខ្ពស់ទាំងអស់ជារៀងរហូត គ្មានថ្លៃបន្តប្រចាំខែឡើយ។
+            {isLifetime
+              ? 'សូមអបអរសាទរ! គណនីរបស់អ្នកបាន Upgrade ជាសមាជិក VIP រួចរាល់ហើយ។'
+              : 'ទូទាត់តែម្តង ប្រើប្រាស់មុខងារកម្រិតខ្ពស់ទាំងអស់ជារៀងរហូត គ្មានថ្លៃបន្តប្រចាំខែឡើយ។'}
           </p>
 
-          {/* Price Box */}
-          <div className="pt-4 flex flex-col items-center">
-            <div className="flex items-baseline gap-2">
-              <span className="text-4xl sm:text-6xl font-black text-white tracking-tight">
-                $3.00
-              </span>
-              <span className="text-slate-400 text-sm font-semibold uppercase">
-                USD / មួយជីវិត
-              </span>
-            </div>
-            <p className="text-xs text-amber-400 font-medium mt-1">
-              (ប្រហែល ~12,000 រៀល តាមរយៈ ABA PayWay / KHQR)
-            </p>
-          </div>
-
-          {/* Call to action */}
-          <div className="pt-4">
-            {isLifetime ? (
-              <div className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold text-sm shadow-lg">
-                <Crown className="w-5 h-5 text-amber-400" />
-                អ្នកជាសមាជិក Lifetime VIP រួចរាល់ហើយ!
+          {isLifetime ? (
+            <div className="pt-2 pb-2 space-y-4">
+              <div className="p-6 rounded-2xl bg-emerald-950/60 border border-emerald-500/40 text-center space-y-3 shadow-xl">
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/20 text-emerald-300 font-extrabold text-xs uppercase tracking-widest border border-emerald-500/40">
+                  <Crown className="w-4 h-4 text-amber-400" />
+                  គម្រោងបច្ចុប្បន្ន: LIFETIME VIP (ACTIVE)
+                </div>
+                <h2 className="text-xl sm:text-2xl font-black text-white">
+                  អ្នកជាម្ចាស់កម្មសិទ្ធិ Lifetime VIP ពេញមួយជីវិត
+                </h2>
+                <p className="text-xs sm:text-sm text-emerald-200/80 max-w-md mx-auto">
+                  គណនីរបស់អ្នកមានសិទ្ធិចូលប្រើប្រាស់មុខងារពិសេសៗទាំងអស់ជារៀងរហូត គ្មានការផុតកំណត់ និងមិនបាច់បង់ប្រាក់បន្ថែមឡើយ!
+                </p>
+                <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => navigate('/generate')}
+                    className="px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white font-bold text-xs shadow-lg flex items-center gap-2 transition-all active:scale-95"
+                  >
+                    <QrCode className="w-4 h-4" />
+                    ប្រើប្រាស់ Pro Generator ឥឡូវនេះ
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/history')}
+                    className="px-5 py-3 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 font-bold text-xs border border-white/20 flex items-center gap-2 transition-all"
+                  >
+                    <Infinity className="w-4 h-4 text-emerald-400" />
+                    មើលប្រវត្តិស្កេនគ្មានដែនកំណត់
+                  </button>
+                </div>
               </div>
-            ) : (
-              <button
-                type="button"
-                onClick={handleCtaClick}
-                className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-amber-500 via-indigo-600 to-indigo-700 hover:from-amber-400 hover:via-indigo-500 hover:to-indigo-600 text-white font-extrabold text-sm sm:text-base shadow-xl shadow-indigo-600/30 flex items-center justify-center gap-2 mx-auto active:scale-98 transition-all"
-              >
-                {!user ? (
-                  <>
-                    <UserCheck className="w-5 h-5" />
-                    ចូលប្រើប្រាស់ដើម្បីជាវ Lifetime VIP
-                    <ArrowRight className="w-4 h-4 ml-1" />
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-5 h-5 text-amber-300" />
-                    ជាវ Lifetime VIP ឥឡូវនេះ ($3.00)
-                    <ArrowRight className="w-4 h-4 ml-1" />
-                  </>
-                )}
-              </button>
-            )}
+            </div>
+          ) : (
+            <>
+              {/* Price Box */}
+              <div className="pt-4 flex flex-col items-center">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-4xl sm:text-6xl font-black text-white tracking-tight">
+                    $3.00
+                  </span>
+                  <span className="text-slate-400 text-sm font-semibold uppercase">
+                    USD / មួយជីវិត
+                  </span>
+                </div>
+                <p className="text-xs text-amber-400 font-medium mt-1">
+                  (ប្រហែល ~12,000 រៀល តាមរយៈ ABA PayWay / KHQR)
+                </p>
+              </div>
 
-            {!user && (
-              <p className="text-[11px] text-slate-400 mt-2.5">
-                * អ្នកប្រើប្រាស់ធម្មតាមិនចាំបាច់បង្កើតគណនីទេ ប៉ុន្តែពេលជាវ VIP ត្រូវការ Login ដើម្បីរក្សាសិទ្ធិរបស់អ្នកជាអចិន្ត្រៃយ៍។
-              </p>
-            )}
-          </div>
+              {/* Call to action */}
+              <div className="pt-4">
+                <button
+                  type="button"
+                  onClick={handleCtaClick}
+                  className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-amber-500 via-indigo-600 to-indigo-700 hover:from-amber-400 hover:via-indigo-500 hover:to-indigo-600 text-white font-extrabold text-sm sm:text-base shadow-xl shadow-indigo-600/30 flex items-center justify-center gap-2 mx-auto active:scale-98 transition-all"
+                >
+                  {!user ? (
+                    <>
+                      <UserCheck className="w-5 h-5" />
+                      ចូលប្រើប្រាស់ដើម្បីជាវ Lifetime VIP
+                      <ArrowRight className="w-4 h-4 ml-1" />
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-5 h-5 text-amber-300" />
+                      ជាវ Lifetime VIP ឥឡូវនេះ ($3.00)
+                      <ArrowRight className="w-4 h-4 ml-1" />
+                    </>
+                  )}
+                </button>
+
+                {!user && (
+                  <p className="text-[11px] text-slate-400 mt-2.5">
+                    * អ្នកប្រើប្រាស់ធម្មតាមិនចាំបាច់បង្កើតគណនីទេ ប៉ុន្តែពេលជាវ VIP ត្រូវការ Login ដើម្បីរក្សាសិទ្ធិរបស់អ្នកជាអចិន្ត្រៃយ៍។
+                  </p>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Daily Quota Notice */}
-      <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/10 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
-        <div className="flex items-center gap-2">
-          <Clock className="w-4 h-4 text-indigo-500 shrink-0" />
-          <span>
-            សុវត្ថិភាពប្រព័ន្ធ QR: កម្រិតកំណត់បង្កើត QR Checkout អតិបរមា <strong className="text-slate-900 dark:text-white">២០ ដងក្នុង១ថ្ងៃ</strong>។
+      {/* Daily Quota Notice (Only shown to non-VIP) */}
+      {!isLifetime && (
+        <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/10 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-indigo-500 shrink-0" />
+            <span>
+              សុវត្ថិភាពប្រព័ន្ធ QR: កម្រិតកំណត់បង្កើត QR Checkout អតិបរមា <strong className="text-slate-900 dark:text-white">{quota.max} ដងក្នុង១ថ្ងៃ</strong>។
+            </span>
+          </div>
+          <span className="font-bold text-indigo-600 dark:text-indigo-400 shrink-0 ml-2">
+            សល់ {quota.remaining}/{quota.max} ដង
           </span>
         </div>
-        <span className="font-bold text-indigo-600 dark:text-indigo-400 shrink-0 ml-2">
-          សល់ {quota.remaining}/{quota.max} ដង
-        </span>
-      </div>
+      )}
 
       {/* Perks Grid */}
       <div className="space-y-4">
