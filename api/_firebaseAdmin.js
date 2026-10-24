@@ -86,7 +86,7 @@ export function getFirebaseAdmin() {
 /**
  * Strict timeout wrapper for Firestore queries to prevent hanging on serverless
  */
-export async function withFirestoreTimeout(promise, timeoutMs = 2000) {
+export async function withFirestoreTimeout(promise, timeoutMs = 5000) {
   let timeoutHandle;
   const timeoutPromise = new Promise((_, reject) => {
     timeoutHandle = setTimeout(() => {

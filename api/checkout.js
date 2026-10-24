@@ -100,11 +100,27 @@ function generateRandomDeviceId(len = 10) {
   return out;
 }
 
-// In-memory cached session with 60s TTL
+function generateOfficialDeeplinks(qrString) {
+  const encoded = encodeURIComponent(qrString);
+  return {
+    aba: {
+      ios: `abamobilebank://ababank.com?type=payway&qrcode=${encoded}`,
+      android: `intent://ababank.com?type=payway&qrcode=${encoded}#Intent;package=com.paygo24.ibank;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.paygo24.ibank;scheme=abamobilebank;end;`,
+      raw: `abamobilebank://ababank.com?type=payway&qrcode=${encoded}`,
+    },
+    bakong: {
+      ios: `bakong://open?qr=${encoded}`,
+      android: `intent://open?qr=${encoded}#Intent;scheme=bakong;package=kh.gov.nbc.bakong;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dkh.gov.nbc.bakong;end`,
+      raw: `bakong://open?qr=${encoded}`,
+    },
+  };
+}
+
+// In-memory cached session with 180s TTL
 let cachedSession = null;
 
 async function getPaywaySession(forceRefresh = false) {
-  if (!forceRefresh && cachedSession && Date.now() - cachedSession.cachedAt < 60000) {
+  if (!forceRefresh && cachedSession && Date.now() - cachedSession.cachedAt < 180000) {
     return cachedSession;
   }
 
@@ -119,7 +135,7 @@ async function getPaywaySession(forceRefresh = false) {
       'upgrade-insecure-requests': '1',
       'cache-control': 'max-age=0',
     },
-    signal: AbortSignal.timeout(2500),
+    signal: AbortSignal.timeout(10000),
   });
 
   globalCfCookieJar = mergeCookies(globalCfCookieJar, pageRes);
@@ -160,11 +176,9 @@ function computeKhqrCrc16(data) {
 
 function buildAbaKhqr(amount = 3.00, currency = 'USD', billNumber = '') {
   let p = formatTlv('00', '01') + formatTlv('01', '12');
-  const sub00 = formatTlv('00', 'abaakhppxxx@abaa');
-  const sub01 = formatTlv('01', '126100713043212');
-  const sub02 = formatTlv('02', 'ABA Bank');
-  p += formatTlv('30', `${sub00}${sub01}${sub02}`);
-  p += formatTlv('52', '4814');
+  const sub00 = formatTlv('00', '126100713043212@abab');
+  p += formatTlv('29', sub00);
+  p += formatTlv('52', '5999');
   p += formatTlv('53', currency === 'KHR' ? '116' : '840');
   p += formatTlv('54', Number(amount).toFixed(2));
   p += formatTlv('58', 'KH');
@@ -208,7 +222,7 @@ async function createLivePaywayInvoice(amount = 3.00, currency = 'USD') {
         hash,
         request_time: session.requestTime,
       }),
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(10000),
     });
 
     globalCfCookieJar = mergeCookies(globalCfCookieJar, listRes);
@@ -222,7 +236,7 @@ async function createLivePaywayInvoice(amount = 3.00, currency = 'USD') {
       const tranId = String(listJson.status?.tran_id || listJson.tran_id || `TRX-${Date.now()}`);
       const qrString = listJson.qr_string;
       const deviceId = generateRandomDeviceId(10);
-      const deeplinks = buildBankDeeplinks(qrString);
+      const deeplinks = generateOfficialDeeplinks(qrString);
 
       return {
         tranId,
@@ -243,11 +257,24 @@ async function createLivePaywayInvoice(amount = 3.00, currency = 'USD') {
     console.warn('[Checkout] Live PayWay attempt warning:', liveErr.message);
   }
 
-  // Resilient Failover: Authentic Tag 30 EMVCo KHQR synthesis
-  console.log('[Checkout] Activating native ABA KHQR failover engine...');
+  // Resilient Failover: Authentic NBC Bakong KHQR synthesis via pay-helper
+  console.log('[Checkout] Activating authentic NBC Bakong KHQR failover engine...');
   const tranId = `VIP-${Date.now()}`;
-  const rawKhqr = buildAbaKhqr(amount, currency, tranId);
-  const deeplinks = buildBankDeeplinks(rawKhqr);
+  let rawKhqr;
+  try {
+    const payment = createPayment({
+      merchantId: '126100713043212@abab',
+      merchantName: 'NOB ROTANA',
+      merchantCity: 'Phnom Penh',
+      amount: Number(amount),
+      currency: currency || 'USD',
+      billNumber: tranId,
+    });
+    rawKhqr = payment.qrString;
+  } catch {
+    rawKhqr = buildAbaKhqr(amount, currency, tranId);
+  }
+  const deeplinks = generateOfficialDeeplinks(rawKhqr);
 
   return {
     tranId,

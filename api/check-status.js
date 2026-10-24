@@ -56,7 +56,7 @@ async function activateVipInFirestore(userId, tranId, amount = 3.00, currency = 
     const { db, FieldValue } = getFirebaseAdmin();
     if (db) {
       // Replay check: has another user already claimed this transaction?
-      const alreadyClaimed = await withFirestoreTimeout(isTransactionClaimedByOther(db, tranId, userId), 2000).catch(() => false);
+      const alreadyClaimed = await withFirestoreTimeout(isTransactionClaimedByOther(db, tranId, userId), 4000).catch(() => false);
       if (alreadyClaimed) {
         console.warn(`[FirebaseAdmin] Blocked replay activation: TranId ${tranId} already claimed by another user`);
         return false;
@@ -77,7 +77,7 @@ async function activateVipInFirestore(userId, tranId, amount = 3.00, currency = 
           },
           { merge: true }
         ),
-        2000
+        4000
       );
 
       // Also update invoice record in Firestore
@@ -91,7 +91,7 @@ async function activateVipInFirestore(userId, tranId, amount = 3.00, currency = 
             },
             { merge: true }
           ),
-          2000
+          4000
         );
       } catch {}
 
@@ -252,7 +252,7 @@ export default async function handler(req, res) {
               hash,
               request_time: activeRequestTime,
             }),
-            signal: AbortSignal.timeout(6000),
+            signal: AbortSignal.timeout(8000),
           }
         );
 

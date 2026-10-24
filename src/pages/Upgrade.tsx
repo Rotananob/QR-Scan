@@ -38,7 +38,7 @@ export const UpgradePage: React.FC = () => {
           localStorage.removeItem('qr_active_checkout_session');
           return;
         }
-        if (session.expiresAt && session.expiresAt > Date.now()) {
+        if (session.expiresAt && session.expiresAt > Date.now() && session.invoice?.qrString?.startsWith('00')) {
           setCheckoutOpen(true);
         }
       }

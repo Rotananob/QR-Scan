@@ -48,7 +48,55 @@ interface InvoiceData {
   remainingDaily?: number;
 }
 
-const OFFICIAL_PAYWAY_URL = 'https://link.payway.com.kh/ABAPAYbR5506511';
+function formatKhqrTlv(tag: string, val: string) {
+  const len = new TextEncoder().encode(val).length.toString().padStart(2, '0');
+  return `${tag}${len}${val}`;
+}
+
+function computeKhqrCrc16(data: string) {
+  let crc = 0xffff;
+  for (let i = 0; i < data.length; i++) {
+    crc ^= data.charCodeAt(i) << 8;
+    for (let j = 0; j < 8; j++) {
+      if ((crc & 0x8000) !== 0) crc = ((crc << 1) ^ 0x1021) & 0xffff;
+      else crc = (crc << 1) & 0xffff;
+    }
+  }
+  return crc.toString(16).toUpperCase().padStart(4, '0');
+}
+
+function buildClientFallbackKhqr(amount = 3.00, currency = 'USD', billNumber = '') {
+  let p = formatKhqrTlv('00', '01') + formatKhqrTlv('01', '12');
+  const sub00 = formatKhqrTlv('00', '126100713043212@abab');
+  p += formatKhqrTlv('29', sub00);
+  p += formatKhqrTlv('52', '5999');
+  p += formatKhqrTlv('53', currency === 'KHR' ? '116' : '840');
+  p += formatKhqrTlv('54', Number(amount).toFixed(2));
+  p += formatKhqrTlv('58', 'KH');
+  p += formatKhqrTlv('59', 'NOB ROTANA');
+  p += formatKhqrTlv('60', 'PHNOM PENH');
+  if (billNumber) {
+    p += formatKhqrTlv('62', formatKhqrTlv('01', billNumber));
+  }
+  const crcIn = p + '6304';
+  return crcIn + computeKhqrCrc16(crcIn);
+}
+
+function buildClientDeeplinks(qrString: string) {
+  const encoded = encodeURIComponent(qrString);
+  return {
+    aba: {
+      ios: `abamobilebank://ababank.com?type=payway&qrcode=${encoded}`,
+      android: `intent://ababank.com?type=payway&qrcode=${encoded}#Intent;package=com.paygo24.ibank;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.paygo24.ibank;scheme=abamobilebank;end;`,
+      raw: `abamobilebank://ababank.com?type=payway&qrcode=${encoded}`,
+    },
+    bakong: {
+      ios: `bakong://open?qr=${encoded}`,
+      android: `intent://open?qr=${encoded}#Intent;scheme=bakong;package=kh.gov.nbc.bakong;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dkh.gov.nbc.bakong;end`,
+      raw: `bakong://open?qr=${encoded}`,
+    },
+  };
+}
 
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   isOpen,
@@ -144,6 +192,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       if (data.alreadyVip || data.status === 'PAID') {
         setStatus('PAID');
         setShowConfetti(true);
+        try {
+          localStorage.removeItem('qr_active_checkout_session');
+        } catch {}
+        await activateLifetimeVIP(data.tranId || 'EXISTING_VIP', fixedAmount, currency);
         await refreshProfile();
         return;
       }
@@ -153,7 +205,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       setQuota(updatedQuota);
 
       // Render crisp KHQR code with full ISO/IEC Quiet Zone for 100% instant banking scan
-      const qrTarget = data.qrString || OFFICIAL_PAYWAY_URL;
+      const qrTarget = data.qrString;
+      if (!qrTarget || !qrTarget.startsWith('00')) {
+        throw new Error('Invalid QR payload received from payment gateway.');
+      }
       const qrUrl = await QRCode.toDataURL(qrTarget, {
         width: 360,
         margin: 4,
@@ -187,21 +242,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       startTimeRef.current = Date.now();
       isDeeplinkClickedRef.current = false;
     } catch (err: any) {
-      console.warn('[CheckoutModal] Server API failed, activating instant client-side KHQR failover engine:', err);
+      console.warn('[CheckoutModal] Server API failed, activating authentic client-side KHQR failover engine:', err);
       try {
         const fallbackTranId = `VIP-${Date.now()}`;
-        const fallbackKhqr = OFFICIAL_PAYWAY_URL;
-        /* const fallbackKhqr_legacy = generateClientKhqr({
-          abaAccount: '126100713043212',
-          merchantName: 'NOB ROTANA',
-          merchantCity: 'Phnom Penh',
-          amount: fixedAmount,
-          currency: currency,
-          billNumber: fallbackTranId,
-        }); */
+        const fallbackKhqr = buildClientFallbackKhqr(fixedAmount, currency, fallbackTranId);
+        const fallbackDeeplinks = buildClientDeeplinks(fallbackKhqr);
 
-        const qrTarget = fallbackKhqr || OFFICIAL_PAYWAY_URL;
-        const qrUrl = await QRCode.toDataURL(qrTarget, {
+        const qrUrl = await QRCode.toDataURL(fallbackKhqr, {
           width: 360,
           margin: 4,
           color: {
@@ -216,16 +263,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           amount: fixedAmount,
           currency,
           qrString: fallbackKhqr,
-          deeplinks: {
-            aba: {
-              ios: OFFICIAL_PAYWAY_URL,
-              android: OFFICIAL_PAYWAY_URL,
-            },
-            bakong: {
-              ios: OFFICIAL_PAYWAY_URL,
-              android: OFFICIAL_PAYWAY_URL,
-            },
-          },
+          deeplinks: fallbackDeeplinks,
         };
 
         const expiresAt = Date.now() + 180 * 1000;
@@ -362,7 +400,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           localStorage.removeItem('qr_active_checkout_session');
         } else {
           const remaining = Math.floor((session.expiresAt - Date.now()) / 1000);
-          if (remaining > 5 && session.invoice?.tranId && session.qrDataUrl) {
+          if (remaining > 5 && session.invoice?.tranId && session.qrDataUrl && session.invoice?.qrString?.startsWith('00')) {
             setInvoice(session.invoice);
             setQrDataUrl(session.qrDataUrl);
             setTimeLeft(remaining);
@@ -434,20 +472,32 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     };
   }, [status]);
 
-  // Handle Deeplink
+  // Handle Deeplink: Direct native launch into ABA Mobile or Bakong app (NEVER open web URL)
   const handleOpenBankApp = (bank: 'aba' | 'bakong') => {
     isDeeplinkClickedRef.current = true;
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const links = invoice?.deeplinks?.[bank];
+    const qr = invoice?.qrString;
+    if (!qr) return;
 
-    if (links) {
-      const targetUrl = isIOS ? links.ios : links.android || links.ios;
-      if (targetUrl) {
-        window.location.href = targetUrl;
-        return;
-      }
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    const encoded = encodeURIComponent(qr);
+
+    if (bank === 'aba') {
+      const targetUrl = isAndroid
+        ? `intent://ababank.com?type=payway&qrcode=${encoded}#Intent;package=com.paygo24.ibank;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.paygo24.ibank;scheme=abamobilebank;end;`
+        : `abamobilebank://ababank.com?type=payway&qrcode=${encoded}`;
+
+      window.location.href = targetUrl;
+      return;
     }
-    window.open(OFFICIAL_PAYWAY_URL, '_blank');
+
+    if (bank === 'bakong') {
+      const targetUrl = isAndroid
+        ? `intent://open?qr=${encoded}#Intent;scheme=bakong;package=kh.gov.nbc.bakong;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dkh.gov.nbc.bakong;end`
+        : `bakong://open?qr=${encoded}`;
+
+      window.location.href = targetUrl;
+      return;
+    }
   };
 
   if (!isOpen) return null;
