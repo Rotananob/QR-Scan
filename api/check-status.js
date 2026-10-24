@@ -13,7 +13,7 @@
 
 import crypto from 'crypto';
 import { invoiceStore } from './_invoiceStore.js';
-import { getFirebaseAdmin } from './_firebaseAdmin.js';
+import { getFirebaseAdmin, withFirestoreTimeout } from './_firebaseAdmin.js';
 import { checkStatusRateLimit, verifyPaymentSession, isTransactionClaimedByOther } from './_security.js';
 import {
   sendTelegramAlert,
@@ -56,36 +56,42 @@ async function activateVipInFirestore(userId, tranId, amount = 3.00, currency = 
     const { db, FieldValue } = getFirebaseAdmin();
     if (db) {
       // Replay check: has another user already claimed this transaction?
-      const alreadyClaimed = await isTransactionClaimedByOther(db, tranId, userId);
+      const alreadyClaimed = await withFirestoreTimeout(isTransactionClaimedByOther(db, tranId, userId), 2000).catch(() => false);
       if (alreadyClaimed) {
         console.warn(`[FirebaseAdmin] Blocked replay activation: TranId ${tranId} already claimed by another user`);
         return false;
       }
 
       const userRef = db.collection('users').doc(String(userId));
-      await userRef.set(
-        {
-          isLifetime: true,
-          plan: 'LIFETIME_VIP',
-          vipActivatedAt: FieldValue.serverTimestamp(),
-          lastTranId: String(tranId),
-          amount: Number(amount) || 3.00,
-          currency: currency || 'USD',
-          updatedAt: FieldValue.serverTimestamp(),
-          activatedReason: 'KHQR Payment Verified via PayWay',
-        },
-        { merge: true }
+      await withFirestoreTimeout(
+        userRef.set(
+          {
+            isLifetime: true,
+            plan: 'LIFETIME_VIP',
+            vipActivatedAt: FieldValue.serverTimestamp(),
+            lastTranId: String(tranId),
+            amount: Number(amount) || 3.00,
+            currency: currency || 'USD',
+            updatedAt: FieldValue.serverTimestamp(),
+            activatedReason: 'KHQR Payment Verified via PayWay',
+          },
+          { merge: true }
+        ),
+        2000
       );
 
       // Also update invoice record in Firestore
       try {
-        await db.collection('invoices').doc(String(tranId)).set(
-          {
-            status: 'PAID',
-            paidAt: FieldValue.serverTimestamp(),
-            claimedBy: String(userId),
-          },
-          { merge: true }
+        await withFirestoreTimeout(
+          db.collection('invoices').doc(String(tranId)).set(
+            {
+              status: 'PAID',
+              paidAt: FieldValue.serverTimestamp(),
+              claimedBy: String(userId),
+            },
+            { merge: true }
+          ),
+          2000
         );
       } catch {}
 
@@ -148,7 +154,7 @@ export default async function handler(req, res) {
       try {
         const { db } = getFirebaseAdmin();
         if (db) {
-          const docSnap = await db.collection('invoices').doc(tranIdStr).get();
+          const docSnap = await withFirestoreTimeout(db.collection('invoices').doc(tranIdStr).get(), 2000);
           if (docSnap.exists) {
             session = docSnap.data();
           }
@@ -167,7 +173,7 @@ export default async function handler(req, res) {
       try {
         const { db } = getFirebaseAdmin();
         if (db) {
-          const userDoc = await db.collection('users').doc(String(effectiveUserId)).get();
+          const userDoc = await withFirestoreTimeout(db.collection('users').doc(String(effectiveUserId)).get(), 2000);
           if (userDoc.exists && userDoc.data()?.isLifetime) {
             return res.status(200).json({
               status: 'PAID',

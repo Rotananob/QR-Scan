@@ -14,6 +14,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { generateClientKhqr } from '../../services/khqrBuilder';
 import {
   canGenerateCheckoutQR,
   getDailyQuotaInfo,
@@ -178,9 +179,69 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       startTimeRef.current = Date.now();
       isDeeplinkClickedRef.current = false;
     } catch (err: any) {
-      console.error('[CheckoutModal] Generation failed:', err);
-      setError(err.message || 'Cannot connect to payment gateway. Please try again.');
-      setStatus('ERROR');
+      console.warn('[CheckoutModal] Server API failed, activating instant client-side KHQR failover engine:', err);
+      try {
+        const fallbackTranId = `VIP-${Date.now()}`;
+        const fallbackKhqr = generateClientKhqr({
+          bakongId: 'rotana@abab',
+          merchantName: 'ROTANA NOBB',
+          merchantCity: 'Phnom Penh',
+          amount: fixedAmount,
+          currency: currency,
+          billNumber: fallbackTranId,
+        });
+
+        const qrUrl = await QRCode.toDataURL(fallbackKhqr, {
+          width: 360,
+          margin: 4,
+          color: {
+            dark: '#000000',
+            light: '#ffffff',
+          },
+          errorCorrectionLevel: 'M',
+        });
+
+        const fallbackData: InvoiceData = {
+          tranId: fallbackTranId,
+          amount: fixedAmount,
+          currency,
+          qrString: fallbackKhqr,
+          deeplinks: {
+            aba: {
+              ios: `abamobilebank://ababank.com?type=payway&qrcode=${encodeURIComponent(fallbackKhqr)}`,
+              android: `intent://ababank.com?type=payway&qrcode=${encodeURIComponent(fallbackKhqr)}#Intent;scheme=abamobilebank;package=com.aba.mobile.android;end`,
+            },
+            bakong: {
+              ios: `bakong://open?qr=${encodeURIComponent(fallbackKhqr)}`,
+              android: `intent://open?qr=${encodeURIComponent(fallbackKhqr)}#Intent;scheme=bakong;package=kh.gov.nbc.bakong;end`,
+            },
+          },
+        };
+
+        const expiresAt = Date.now() + 180 * 1000;
+        try {
+          localStorage.setItem(
+            'qr_active_checkout_session',
+            JSON.stringify({
+              invoice: fallbackData,
+              qrDataUrl: qrUrl,
+              expiresAt,
+              userId: user?.uid,
+            })
+          );
+        } catch {}
+
+        setInvoice(fallbackData);
+        setQrDataUrl(qrUrl);
+        setStatus('PENDING');
+        setTimeLeft(180);
+        startTimeRef.current = Date.now();
+        isDeeplinkClickedRef.current = false;
+      } catch (fallbackErr) {
+        console.error('[CheckoutModal] Emergency fallback failed:', fallbackErr);
+        setError(err.message || 'Cannot connect to payment gateway. Please try again.');
+        setStatus('ERROR');
+      }
     } finally {
       setLoading(false);
     }

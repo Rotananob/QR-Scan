@@ -14,7 +14,7 @@
 import crypto from 'crypto';
 import { buildBankDeeplinks, createPayment } from 'pay-helper';
 import { invoiceStore } from './_invoiceStore.js';
-import { getFirebaseAdmin } from './_firebaseAdmin.js';
+import { getFirebaseAdmin, withFirestoreTimeout } from './_firebaseAdmin.js';
 import { signPaymentSession } from './_security.js';
 import {
   sendTelegramAlert,
@@ -25,7 +25,7 @@ import {
 } from './_telegram.js';
 
 const CHECKOUT_URL = 'https://link.payway.com.kh/ABAPAYbR5506511';
-const MAX_DAILY_CHECKOUTS = 20;
+const MAX_DAILY_CHECKOUTS = 50;
 
 // Authentic Chrome Browser Fingerprint Headers
 const BROWSER_HEADERS = {
@@ -119,7 +119,7 @@ async function getPaywaySession(forceRefresh = false) {
       'upgrade-insecure-requests': '1',
       'cache-control': 'max-age=0',
     },
-    signal: AbortSignal.timeout(6000),
+    signal: AbortSignal.timeout(2500),
   });
 
   globalCfCookieJar = mergeCookies(globalCfCookieJar, pageRes);
@@ -172,7 +172,7 @@ async function createLivePaywayInvoice(amount = 3.00, currency = 'USD') {
         hash,
         request_time: session.requestTime,
       }),
-      signal: AbortSignal.timeout(6000),
+      signal: AbortSignal.timeout(2500),
     });
 
     globalCfCookieJar = mergeCookies(globalCfCookieJar, listRes);
@@ -267,7 +267,7 @@ export default async function handler(req, res) {
     try {
       const { db } = getFirebaseAdmin();
       if (db) {
-        const userDoc = await db.collection('users').doc(String(userId)).get();
+        const userDoc = await withFirestoreTimeout(db.collection('users').doc(String(userId)).get(), 2000);
         if (userDoc.exists && userDoc.data()?.isLifetime) {
           return res.status(200).json({
             success: true,
@@ -331,22 +331,25 @@ export default async function handler(req, res) {
     try {
       const { db, FieldValue } = getFirebaseAdmin();
       if (db) {
-        await db.collection('invoices').doc(tranIdStr).set({
-          tranId: tranIdStr,
-          token: invoice.token,
-          clientId: invoice.clientId,
-          deviceId: invoice.deviceId,
-          requestTime: invoice.requestTime,
-          cookieJar: invoice.cookieJar,
-          userId,
-          amount: numAmount,
-          currency: finalCurrency,
-          qrString: invoice.qrString,
-          status: 'PENDING',
-          createdAt: FieldValue.serverTimestamp(),
-          expiresAt: new Date(Date.now() + 180 * 1000),
-          source: invoice.source,
-        });
+        await withFirestoreTimeout(
+          db.collection('invoices').doc(tranIdStr).set({
+            tranId: tranIdStr,
+            token: invoice.token,
+            clientId: invoice.clientId,
+            deviceId: invoice.deviceId,
+            requestTime: invoice.requestTime,
+            cookieJar: invoice.cookieJar,
+            userId,
+            amount: numAmount,
+            currency: finalCurrency,
+            qrString: invoice.qrString,
+            status: 'PENDING',
+            createdAt: FieldValue.serverTimestamp(),
+            expiresAt: new Date(Date.now() + 180 * 1000),
+            source: invoice.source,
+          }),
+          2000
+        );
         console.log(`[Checkout] Persisted invoice session to Firestore: ${tranIdStr} for user ${userId}`);
       }
     } catch (dbErr) {

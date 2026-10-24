@@ -3,8 +3,14 @@
  * Rule: Maximum 20 QR code generations per calendar day.
  */
 
-export const MAX_DAILY_CHECKOUTS = 20;
+export const MAX_DAILY_CHECKOUTS = 50;
 const STORAGE_KEY = 'pay_helper_checkout_quota';
+
+export function resetCheckoutQuota(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {}
+}
 
 export interface DailyQuotaInfo {
   date: string;
