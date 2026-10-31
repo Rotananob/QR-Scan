@@ -12,7 +12,7 @@
  */
 
 import crypto from 'crypto';
-import { buildBankDeeplinks, createPayment } from 'pay-helper';
+import { buildBankDeeplinks, createPayment, KhqrGateway } from 'pay-helper';
 import { invoiceStore } from './_invoiceStore.js';
 import { getFirebaseAdmin, withFirestoreTimeout } from './_firebaseAdmin.js';
 import { signPaymentSession } from './_security.js';
@@ -102,11 +102,14 @@ function generateRandomDeviceId(len = 10) {
 
 function generateOfficialDeeplinks(qrString) {
   const encoded = encodeURIComponent(qrString);
+  const isPayway = qrString.includes('PAYWAY') || qrString.includes('PLIK');
+  const typeParam = isPayway ? 'payway' : 'khqr';
+
   return {
     aba: {
-      ios: `abamobilebank://ababank.com?type=payway&qrcode=${encoded}`,
-      android: `intent://ababank.com?type=payway&qrcode=${encoded}#Intent;package=com.paygo24.ibank;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.paygo24.ibank;scheme=abamobilebank;end;`,
-      raw: `abamobilebank://ababank.com?type=payway&qrcode=${encoded}`,
+      ios: `abamobilebank://ababank.com?type=${typeParam}&qrcode=${encoded}`,
+      android: `intent://ababank.com?type=${typeParam}&qrcode=${encoded}#Intent;scheme=abamobilebank;package=com.paygo24.ibank;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.paygo24.ibank;end;`,
+      raw: `abamobilebank://ababank.com?type=${typeParam}&qrcode=${encoded}`,
     },
     bakong: {
       ios: `bakong://open?qr=${encoded}`,

@@ -84,11 +84,14 @@ function buildClientFallbackKhqr(amount = 3.00, currency = 'USD', billNumber = '
 
 function buildClientDeeplinks(qrString: string) {
   const encoded = encodeURIComponent(qrString);
+  const isPayway = qrString.includes('PAYWAY') || qrString.includes('PLIK');
+  const typeParam = isPayway ? 'payway' : 'khqr';
+
   return {
     aba: {
-      ios: `abamobilebank://ababank.com?type=payway&qrcode=${encoded}`,
-      android: `intent://ababank.com?type=payway&qrcode=${encoded}#Intent;package=com.paygo24.ibank;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.paygo24.ibank;scheme=abamobilebank;end;`,
-      raw: `abamobilebank://ababank.com?type=payway&qrcode=${encoded}`,
+      ios: `abamobilebank://ababank.com?type=${typeParam}&qrcode=${encoded}`,
+      android: `intent://ababank.com?type=${typeParam}&qrcode=${encoded}#Intent;scheme=abamobilebank;package=com.paygo24.ibank;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.paygo24.ibank;end;`,
+      raw: `abamobilebank://ababank.com?type=${typeParam}&qrcode=${encoded}`,
     },
     bakong: {
       ios: `bakong://open?qr=${encoded}`,
@@ -478,13 +481,22 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     const qr = invoice?.qrString;
     if (!qr) return;
 
+    // Automatic silent copy to clipboard as seamless backup UX
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(qr).catch(() => {});
+      }
+    } catch {}
+
     const isAndroid = /Android/i.test(navigator.userAgent);
     const encoded = encodeURIComponent(qr);
+    const isPayway = qr.includes('PAYWAY') || qr.includes('PLIK');
+    const typeParam = isPayway ? 'payway' : 'khqr';
 
     if (bank === 'aba') {
       const targetUrl = isAndroid
-        ? `intent://ababank.com?type=payway&qrcode=${encoded}#Intent;package=com.paygo24.ibank;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.paygo24.ibank;scheme=abamobilebank;end;`
-        : `abamobilebank://ababank.com?type=payway&qrcode=${encoded}`;
+        ? `intent://ababank.com?type=${typeParam}&qrcode=${encoded}#Intent;scheme=abamobilebank;package=com.paygo24.ibank;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.paygo24.ibank;end;`
+        : `abamobilebank://ababank.com?type=${typeParam}&qrcode=${encoded}`;
 
       window.location.href = targetUrl;
       return;
@@ -740,7 +752,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     className="w-full py-3 px-4 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 font-bold text-xs shadow-md flex items-center justify-center gap-2 transition-all active:scale-98 disabled:opacity-75"
                   >
                     <RotateCw className={checkingManual ? 'w-4 h-4 animate-spin' : 'w-4 h-4'} />
-                    {checkingManual ? 'កំពុងផ្ទៀងផ្ទាត់ជាមួយធនាគារ ABA...' : '🔄 ពិនិត្យស្ថានភាពការទូទាត់ឡើងវិញ (Check Status)'}
+                    <span>{checkingManual ? 'កំពុងផ្ទៀងផ្ទាត់ជាមួយធនាគារ ABA...' : 'ពិនិត្យស្ថានភាពការទូទាត់ឡើងវិញ (Check Status)'}</span>
                   </button>
 
                   {manualNotice && (
