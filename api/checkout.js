@@ -108,7 +108,7 @@ function generateOfficialDeeplinks(qrString) {
   return {
     aba: {
       ios: `abamobilebank://ababank.com?type=${typeParam}&qrcode=${encoded}`,
-      android: `intent://ababank.com?type=${typeParam}&qrcode=${encoded}#Intent;scheme=abamobilebank;package=com.paygo24.ibank;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.paygo24.ibank;end;`,
+      android: `intent://ababank.com?type=${typeParam}&qrcode=${encoded}#Intent;scheme=abamobilebank;end;`,
       raw: `abamobilebank://ababank.com?type=${typeParam}&qrcode=${encoded}`,
     },
     bakong: {
@@ -235,28 +235,78 @@ async function createLivePaywayInvoice(amount = 3.00, currency = 'USD') {
       listJson = JSON.parse(listText);
     } catch {}
 
-    if (listRes.status === 200 && listJson?.token && listJson?.qr_string) {
-      const tranId = String(listJson.status?.tran_id || listJson.tran_id || `TRX-${Date.now()}`);
-      const qrString = listJson.qr_string;
-      const deviceId = generateRandomDeviceId(10);
-      const deeplinks = generateOfficialDeeplinks(qrString);
+    if (listRes.status === 200 && listJson?.token) {
+      // Step 3: Register transaction with ABA PayWay by calling abapay-khqr/request-qr
+      let activeQrString = listJson.qr_string;
+      let activeToken = listJson.token;
+      let activeClientId = listJson.client_id;
+      let tranId = String(listJson.status?.tran_id || listJson.tran_id || `TRX-${Date.now()}`);
 
-      return {
-        tranId,
-        token: listJson.token,
-        clientId: listJson.client_id,
-        deviceId,
-        requestTime: session.requestTime,
-        qrString,
-        paywayUrl: CHECKOUT_URL,
-        deeplinks,
-        cookieJar: globalCfCookieJar,
-        amount: Number(amount),
-        currency,
-        source: 'payway_live',
-      };
+      try {
+        const qrHash = crypto
+          .createHmac('sha512', listJson.token)
+          .update(`${session.requestTime}${listJson.aba_data || session.abaData}`)
+          .digest('hex');
+
+        const qrRes = await fetch('https://link.payway.com.kh/api/pw-app/v1/payment/gateway/abapay-khqr/request-qr', {
+          method: 'POST',
+          headers: {
+            ...BROWSER_HEADERS,
+            'Content-Type': 'application/json',
+            Accept: 'application/json, text/plain, */*',
+            Origin: 'https://link.payway.com.kh',
+            Referer: CHECKOUT_URL,
+            'sec-fetch-dest': 'empty',
+            'sec-fetch-mode': 'cors',
+            'sec-fetch-site': 'same-origin',
+            token: listJson.token,
+            ...(session.cookieJar ? { Cookie: session.cookieJar } : {}),
+          },
+          body: JSON.stringify({
+            request_time: session.requestTime,
+            aba_data: listJson.aba_data || session.abaData,
+            hash: qrHash,
+          }),
+          signal: AbortSignal.timeout(10000),
+        });
+
+        globalCfCookieJar = mergeCookies(globalCfCookieJar, qrRes);
+        const qrText = await qrRes.text();
+        const qrJson = JSON.parse(qrText);
+        if (qrRes.status === 200 && qrJson?.qr_string) {
+          activeQrString = qrJson.qr_string;
+          activeToken = qrJson.token || listJson.token;
+          activeClientId = qrJson.client_id || listJson.client_id;
+          if (qrJson.status?.tran_id) {
+            tranId = String(qrJson.status.tran_id);
+          }
+        }
+      } catch (qrReqErr) {
+        console.warn('[Checkout] Secondary abapay-khqr/request-qr warning:', qrReqErr.message);
+      }
+
+      if (activeQrString) {
+        const deviceId = generateRandomDeviceId(10);
+        const deeplinks = generateOfficialDeeplinks(activeQrString);
+
+        return {
+          tranId,
+          token: activeToken,
+          clientId: activeClientId,
+          deviceId,
+          requestTime: session.requestTime,
+          qrString: activeQrString,
+          paywayUrl: CHECKOUT_URL,
+          deeplinks,
+          cookieJar: globalCfCookieJar,
+          amount: Number(amount),
+          currency,
+          source: 'payway_live',
+        };
+      }
     }
   } catch (liveErr) {
+    cachedSession = null; // Invalidate cache on failure to ensure clean retry
     console.warn('[Checkout] Live PayWay attempt warning:', liveErr.message);
   }
 

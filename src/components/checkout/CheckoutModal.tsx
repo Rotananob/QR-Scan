@@ -90,7 +90,7 @@ function buildClientDeeplinks(qrString: string) {
   return {
     aba: {
       ios: `abamobilebank://ababank.com?type=${typeParam}&qrcode=${encoded}`,
-      android: `intent://ababank.com?type=${typeParam}&qrcode=${encoded}#Intent;scheme=abamobilebank;package=com.paygo24.ibank;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.paygo24.ibank;end;`,
+      android: `intent://ababank.com?type=${typeParam}&qrcode=${encoded}#Intent;scheme=abamobilebank;end;`,
       raw: `abamobilebank://ababank.com?type=${typeParam}&qrcode=${encoded}`,
     },
     bakong: {
@@ -495,7 +495,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
     if (bank === 'aba') {
       const targetUrl = isAndroid
-        ? `intent://ababank.com?type=${typeParam}&qrcode=${encoded}#Intent;scheme=abamobilebank;package=com.paygo24.ibank;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.paygo24.ibank;end;`
+        ? `intent://ababank.com?type=${typeParam}&qrcode=${encoded}#Intent;scheme=abamobilebank;end;`
         : `abamobilebank://ababank.com?type=${typeParam}&qrcode=${encoded}`;
 
       window.location.href = targetUrl;
