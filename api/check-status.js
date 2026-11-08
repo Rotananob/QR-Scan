@@ -139,7 +139,12 @@ export default async function handler(req, res) {
       });
     }
 
-    const { tranId, token, deviceId, clientId, requestTime, userId, signature, createdAt } = req.body || {};
+    let body = req.body;
+    if (typeof body === 'string') {
+      try { body = JSON.parse(body); } catch {}
+    }
+
+    const { tranId, token, deviceId, clientId, requestTime, userId, signature, createdAt } = body || {};
 
     if (!tranId) {
       return res.status(400).json({ error: 'Missing tranId in request body.' });

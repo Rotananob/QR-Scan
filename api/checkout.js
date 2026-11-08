@@ -364,7 +364,11 @@ export default async function handler(req, res) {
   }
 
   try {
-    const userId = req.body?.userId;
+    let body = req.body;
+    if (typeof body === 'string') {
+      try { body = JSON.parse(body); } catch {}
+    }
+    const userId = body?.userId;
 
     // Strict requirement: User MUST be authenticated to generate live checkout invoice
     if (!userId) {
