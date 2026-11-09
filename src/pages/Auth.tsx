@@ -5,7 +5,6 @@ import {
   Mail,
   User,
   ArrowRight,
-  Sparkles,
   ShieldCheck,
   CheckCircle2,
   AlertCircle,
@@ -51,7 +50,7 @@ export const AuthPage: React.FC = () => {
       console.error('[Auth Error]:', err);
       let msg = err.message || 'បរាជ័យក្នុងការចូលប្រើ';
       if (err.code === 'auth/email-already-in-use') {
-        msg = 'អ៊ីមែលនេះត្រូវបានប្រើប្រាស់រួចហើយ។ សូមជ្រើសរើស "ចូលប្រើ (Login)"។';
+        msg = 'អ៊ីមែលនេះត្រូវបានប្រើប្រាស់រួចហើយ សូមជ្រើសរើសចូលប្រើប្រាស់។';
       } else if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
         msg = 'អ៊ីមែល ឬពាក្យសម្ងាត់មិនត្រឹមត្រូវទេ។';
       } else if (err.code === 'auth/weak-password') {
@@ -83,66 +82,66 @@ export const AuthPage: React.FC = () => {
   if (user) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] px-4 py-8">
-        <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-3xl p-6 sm:p-8 shadow-xl text-center space-y-6">
+        <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-sm text-center space-y-6">
           <div className="relative inline-block">
             {user.photoURL ? (
               <img
                 src={user.photoURL}
                 alt={user.displayName || 'User'}
-                className="w-20 h-20 rounded-full mx-auto border-2 border-indigo-500 shadow-lg object-cover"
+                className="w-20 h-20 rounded-full mx-auto border-2 border-slate-300 shadow-xs object-cover"
               />
             ) : (
-              <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 text-white font-bold text-2xl flex items-center justify-center mx-auto shadow-lg">
+              <div className="w-20 h-20 rounded-full bg-slate-800 text-white font-bold text-2xl flex items-center justify-center mx-auto shadow-xs">
                 {(user.displayName || user.email || 'U').charAt(0).toUpperCase()}
               </div>
             )}
             {isLifetime && (
-              <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-amber-500 text-white rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900 shadow-md">
+              <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-amber-500 text-white rounded-full flex items-center justify-center border-2 border-white shadow-xs">
                 <Crown className="w-4 h-4" />
               </div>
             )}
           </div>
 
           <div>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center justify-center gap-2">
+            <h2 className="text-xl font-bold text-slate-900 flex items-center justify-center gap-2">
               {user.displayName || 'សមាជិក'}
               {isLifetime && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20 uppercase tracking-wider">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-800 border border-slate-200 uppercase tracking-wider">
                   Lifetime VIP
                 </span>
               )}
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{user.email}</p>
+            <p className="text-xs text-slate-500 mt-1">{user.email}</p>
           </div>
 
-          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-100 dark:border-white/5 text-left text-xs space-y-2">
-            <div className="flex justify-between py-1 border-b border-slate-100 dark:border-white/5">
+          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-left text-xs space-y-2">
+            <div className="flex justify-between py-1 border-b border-slate-200">
               <span className="text-slate-500">ស្ថានភាពគណនី:</span>
-              <span className="font-bold text-slate-900 dark:text-white">
+              <span className="font-bold text-slate-900">
                 {isLifetime ? 'Lifetime VIP Member' : 'Free Standard User'}
               </span>
             </div>
             <div className="flex justify-between py-1">
               <span className="text-slate-500">Account ID:</span>
-              <span className="font-mono text-[10px] text-slate-600 dark:text-slate-400 truncate max-w-[180px]">
+              <span className="font-mono text-[10px] text-slate-600 truncate max-w-[180px]">
                 {user.uid}
               </span>
             </div>
           </div>
 
-          <div className="space-y-3 pt-2">
+          <div className="space-y-2.5 pt-2">
             {!isLifetime ? (
               <button
                 type="button"
                 onClick={() => navigate('/upgrade')}
-                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white font-bold text-sm shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2 transition-all"
+                className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs flex items-center justify-center gap-2 transition-all"
               >
-                <Crown className="w-4 h-4" />
-                ជាវ Lifetime VIP ឥឡូវនេះ
+                <Crown className="w-4 h-4 text-amber-400" />
+                ជាវ Lifetime VIP $3.00
               </button>
             ) : (
-              <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 rounded-xl text-emerald-700 dark:text-emerald-300 text-xs font-medium flex items-center justify-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-medium flex items-center justify-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                 អ្នកមានសិទ្ធិប្រើប្រាស់មុខងារ VIP ពេញលេញជារៀងរហូត
               </div>
             )}
@@ -150,9 +149,9 @@ export const AuthPage: React.FC = () => {
             <button
               type="button"
               onClick={signOut}
-              className="w-full py-3 rounded-2xl border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300 text-xs font-semibold transition-colors"
+              className="w-full py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors"
             >
-              ចាកចេញពីគណនី (Sign Out)
+              ចាកចេញពីគណនី
             </button>
           </div>
         </div>
@@ -162,20 +161,17 @@ export const AuthPage: React.FC = () => {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[85vh] px-4 py-8">
-      <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
-        {/* Glow accent */}
-        <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-amber-500" />
-
+      <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-sm relative">
         {/* Heading */}
         <div className="text-center space-y-2 mb-6">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100 dark:border-indigo-800/40 text-xs font-bold text-indigo-600 dark:text-indigo-400">
-            <Sparkles className="w-3.5 h-3.5" />
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-xs font-bold text-slate-800">
+            <Crown className="w-3.5 h-3.5 text-amber-600" />
             {redirectTarget.includes('upgrade') ? 'ដំណាក់កាលជាវ Lifetime VIP' : 'គណនី QR Scan'}
           </div>
-          <h2 className="text-2xl font-black text-slate-900 dark:text-white">
+          <h2 className="text-2xl font-black text-slate-900">
             {mode === 'LOGIN' ? 'ចូលប្រើប្រាស់គណនី' : 'បង្កើតគណនីថ្មី'}
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
+          <p className="text-xs text-slate-500">
             {redirectTarget.includes('upgrade')
               ? 'សូមចូលប្រើប្រាស់ ឬបង្កើតគណនី ដើម្បីចងភ្ជាប់សិទ្ធិ Lifetime VIP របស់អ្នកជាអចិន្ត្រៃយ៍'
               : 'ចូលប្រើដើម្បី Sync ទិន្នន័យ និងគ្រប់គ្រងសិទ្ធិ VIP របស់អ្នក'}
@@ -183,35 +179,35 @@ export const AuthPage: React.FC = () => {
         </div>
 
         {/* Mode Switch Tabs */}
-        <div className="flex p-1 bg-slate-100 dark:bg-slate-800/60 rounded-2xl mb-6">
+        <div className="flex p-1 bg-slate-100 rounded-xl mb-5 border border-slate-200">
           <button
             type="button"
             onClick={() => setMode('LOGIN')}
-            className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all ${
+            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
               mode === 'LOGIN'
-                ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                ? 'bg-white text-slate-900 shadow-xs'
+                : 'text-slate-500 hover:text-slate-900'
             }`}
           >
-            ចូលប្រើ (Login)
+            ចូលប្រើប្រាស់
           </button>
           <button
             type="button"
             onClick={() => setMode('REGISTER')}
-            className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all ${
+            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
               mode === 'REGISTER'
-                ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                ? 'bg-white text-slate-900 shadow-xs'
+                : 'text-slate-500 hover:text-slate-900'
             }`}
           >
-            ចុះឈ្មោះ (Register)
+            បង្កើតគណនីថ្មី
           </button>
         </div>
 
         {/* Error message */}
         {error && (
-          <div className="mb-5 p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/40 text-xs text-rose-700 dark:text-rose-300 flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+          <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
             <div className="flex-1">{error}</div>
           </div>
         )}
@@ -221,7 +217,7 @@ export const AuthPage: React.FC = () => {
           type="button"
           onClick={handleGoogleSignIn}
           disabled={loading}
-          className="w-full py-3 px-4 rounded-2xl border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 transition-all flex items-center justify-center gap-3 text-xs font-bold text-slate-700 dark:text-slate-200 shadow-sm mb-5 active:scale-[0.99]"
+          className="w-full py-2.5 px-4 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all flex items-center justify-center gap-2.5 text-xs font-bold text-slate-700 shadow-xs mb-4 active:scale-[0.99]"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24">
             <path
@@ -244,19 +240,19 @@ export const AuthPage: React.FC = () => {
           បន្តជាមួយ Google
         </button>
 
-        <div className="relative flex items-center justify-center mb-5">
-          <div className="border-t border-slate-200 dark:border-white/10 w-full" />
-          <span className="bg-white dark:bg-slate-900 px-3 text-[11px] text-slate-400 uppercase tracking-wider font-semibold">
+        <div className="relative flex items-center justify-center mb-4">
+          <div className="border-t border-slate-200 w-full" />
+          <span className="bg-white px-3 text-[11px] text-slate-400 uppercase tracking-wider font-semibold">
             ឬប្រើអ៊ីមែល
           </span>
         </div>
 
         {/* Email & Password Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3.5">
           {mode === 'REGISTER' && (
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                ឈ្មោះរបស់អ្នក (Display Name)
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                ឈ្មោះពេញរបស់អ្នក
               </label>
               <div className="relative">
                 <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -264,16 +260,16 @@ export const AuthPage: React.FC = () => {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="ឈ្មោះពេញ ឬ Nickname"
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="ឈ្មោះពេញ"
+                  className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-900"
                 />
               </div>
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-              អាសយដ្ឋានអ៊ីមែល (Email)
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              អាសយដ្ឋានអ៊ីមែល
             </label>
             <div className="relative">
               <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -283,14 +279,14 @@ export const AuthPage: React.FC = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@example.com"
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-900"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-              ពាក្យសម្ងាត់ (Password)
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              ពាក្យសម្ងាត់
             </label>
             <div className="relative">
               <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -301,12 +297,12 @@ export const AuthPage: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="យ៉ាងហោច ៦ តួអក្សរ"
-                className="w-full pl-10 pr-10 py-2.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full pl-10 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-900"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -316,22 +312,22 @@ export const AuthPage: React.FC = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 active:scale-[0.99] text-white font-bold text-xs shadow-lg shadow-indigo-500/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50 mt-2"
+            className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-[0.99] text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2 disabled:opacity-50 mt-1"
           >
             {loading ? (
               <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
               <>
-                <span>{mode === 'LOGIN' ? 'ចូលប្រើប្រាស់' : 'បង្កើតគណនី'}</span>
+                <span>{mode === 'LOGIN' ? 'ចូលប្រើប្រាស់' : 'បង្កើតគណនីថ្មី'}</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}
           </button>
         </form>
 
-        <div className="mt-6 text-center text-xs text-slate-500 dark:text-slate-400 flex items-center justify-center gap-1.5">
-          <ShieldCheck className="w-4 h-4 text-emerald-500" />
-          <span>ទិន្នន័យរបស់អ្នកត្រូវបានការពារសុវត្ថិភាពដោយប្រព័ន្ធ Professional Cloud Security</span>
+        <div className="mt-5 text-center text-xs text-slate-500 flex items-center justify-center gap-1.5">
+          <ShieldCheck className="w-4 h-4 text-emerald-600" />
+          <span>ទិន្នន័យត្រូវបានការពារសុវត្ថិភាពដោយប្រព័ន្ធ Cloud Security</span>
         </div>
       </div>
     </div>

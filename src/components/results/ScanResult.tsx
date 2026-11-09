@@ -196,7 +196,7 @@ export const ScanResult: React.FC<ScanResultProps> = ({
             {/* Amount Banner */}
             {khqrData.amount && (
               <div className="bg-white/80 dark:bg-slate-800/80 rounded-xl p-3 border border-red-100 dark:border-red-900/30 text-center shadow-xs">
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">ចំនួនទឹកប្រាក់ (Amount)</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">ចំនួនទឹកប្រាក់</p>
                 <p className="text-2xl font-extrabold text-red-600 dark:text-red-400 tracking-tight">
                   {khqrData.currencySymbol}
                   {Number(khqrData.amount).toLocaleString()}{' '}
@@ -219,7 +219,7 @@ export const ScanResult: React.FC<ScanResultProps> = ({
               )}
               {khqrData.merchantCity && (
                 <div className="flex items-center justify-between p-2 rounded-lg bg-white/60 dark:bg-slate-800/60 border border-slate-200/40 dark:border-white/5">
-                  <span className="text-slate-500 dark:text-slate-400">ទីតាំង (City)</span>
+                  <span className="text-slate-500 dark:text-slate-400">ទីតាំង</span>
                   <span className="font-medium text-slate-900 dark:text-white">
                     {khqrData.merchantCity}
                   </span>
@@ -227,7 +227,7 @@ export const ScanResult: React.FC<ScanResultProps> = ({
               )}
               {khqrData.billNumber && (
                 <div className="flex items-center justify-between p-2 rounded-lg bg-white/60 dark:bg-slate-800/60 border border-slate-200/40 dark:border-white/5">
-                  <span className="text-slate-500 dark:text-slate-400">លេខវិក្កយបត្រ (Bill No.)</span>
+                  <span className="text-slate-500 dark:text-slate-400">លេខវិក្កយបត្រ</span>
                   <span className="font-mono text-slate-900 dark:text-white">
                     {khqrData.billNumber}
                   </span>
@@ -242,7 +242,7 @@ export const ScanResult: React.FC<ScanResultProps> = ({
               className="w-full mt-2 py-2 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/40 font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-all active:scale-[0.98]"
             >
               <Printer className="w-3.5 h-3.5" />
-              <span>{t('standee.createButton', '🪧 បោះពុម្ពស្លាក Standee តុ (Print Merchant Standee)')}</span>
+              <span>{t('standee.createButton', 'បោះពុម្ពស្លាក Standee តុ')}</span>
             </button>
           </div>
         )}
@@ -413,14 +413,14 @@ export const ScanResult: React.FC<ScanResultProps> = ({
             {securityReport.level === 'danger' && !showPhishingOverride ? (
               <div className="p-2.5 rounded-lg bg-rose-100/90 dark:bg-rose-900/50 border border-rose-300 dark:border-rose-800 text-xs text-rose-800 dark:text-rose-200 space-y-1.5">
                 <p className="font-semibold text-[11px] leading-snug">
-                  ⛔ ប្រព័ន្ធសុវត្ថិភាពបានទប់ស្កាត់ការបើកស្វ័យប្រវត្តិ ដើម្បីការពារគណនី និងលេខសម្ងាត់របស់អ្នក!
+                  ប្រព័ន្ធសុវត្ថិភាពបានទប់ស្កាត់ការបើកស្វ័យប្រវត្តិ ដើម្បីការពារគណនី និងលេខសម្ងាត់របស់អ្នក
                 </p>
                 <button
                   type="button"
                   onClick={() => setShowPhishingOverride(true)}
                   className="text-[11px] underline font-bold text-rose-700 dark:text-rose-300 hover:text-rose-950 block text-left"
                 >
-                  ខ្ញុំយល់ពីហានិភ័យ ហើយចង់បើកតំណភ្ជាប់នេះ (Open Anyway)
+                  ខ្ញុំយល់ពីហានិភ័យ ហើយចង់បើកតំណភ្ជាប់នេះ
                 </button>
               </div>
             ) : (

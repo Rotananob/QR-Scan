@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Sparkles, QrCode, Barcode, Landmark } from 'lucide-react';
+import { ScanLine, QrCode, Barcode, Landmark } from 'lucide-react';
 import { ScannerOverlay } from './ScannerOverlay';
 import { ScanStatus } from './ScanStatus';
 import { CameraControls } from './CameraControls';
@@ -92,7 +92,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
   };
 
   const modes: { id: ScanMode; labelKey: string; defaultLabel: string; icon: React.ComponentType<{ className?: string }> }[] = [
-    { id: 'all', labelKey: 'scanner.modes.all', defaultLabel: 'All-in-One', icon: Sparkles },
+    { id: 'all', labelKey: 'scanner.modes.all', defaultLabel: 'All-in-One', icon: ScanLine },
     { id: 'qr', labelKey: 'scanner.modes.qr', defaultLabel: 'QR Code', icon: QrCode },
     { id: 'barcode', labelKey: 'scanner.modes.barcode', defaultLabel: 'Barcode', icon: Barcode },
     { id: 'khqr', labelKey: 'scanner.modes.khqr', defaultLabel: 'KHQR', icon: Landmark },

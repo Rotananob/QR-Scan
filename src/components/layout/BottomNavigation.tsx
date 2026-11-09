@@ -19,7 +19,7 @@ export const BottomNavigation: React.FC = () => {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-40 bg-white/80 dark:bg-slate-950/80 backdrop-blur-2xl border-t border-slate-200/50 dark:border-white/5 pb-safe shadow-[0_-4px_24px_-8px_rgba(0,0,0,0.05)] dark:shadow-none"
+      className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 pb-safe shadow-xs"
       aria-label="Main navigation"
     >
       <div className="flex">
@@ -30,14 +30,14 @@ export const BottomNavigation: React.FC = () => {
             end={end}
             className={({ isActive }) =>
               cn(
-                'flex-1 flex flex-col items-center justify-center gap-1 py-2 min-h-[56px] transition-all duration-300 relative',
+                'flex-1 flex flex-col items-center justify-center gap-1 py-2 min-h-[56px] transition-all duration-200 relative',
                 isActive
                   ? isGold
-                    ? 'text-amber-500'
-                    : 'text-indigo-600 dark:text-indigo-400'
+                    ? 'text-amber-600'
+                    : 'text-slate-900 font-bold'
                   : isGold
-                  ? 'text-amber-500/80 hover:text-amber-500'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                  ? 'text-amber-600/80 hover:text-amber-600'
+                  : 'text-slate-500 hover:text-slate-800'
               )
             }
             aria-label={label}
@@ -46,20 +46,20 @@ export const BottomNavigation: React.FC = () => {
               <>
                 <Icon
                   className={cn(
-                    'w-5 h-5 transition-all duration-300',
-                    isActive && 'scale-110 mb-0.5',
-                    isGold && 'text-amber-500'
+                    'w-5 h-5 transition-transform duration-200',
+                    isActive && 'scale-105 mb-0.5',
+                    isGold ? 'text-amber-600' : isActive ? 'text-slate-900' : 'text-slate-500'
                   )}
                   aria-hidden="true"
                 />
-                <span className={cn('text-[10px] font-medium transition-all duration-300', isActive ? 'opacity-100 font-bold' : 'opacity-70')}>
+                <span className={cn('text-[10px] transition-all duration-200', isActive ? 'opacity-100 font-bold text-slate-900' : 'opacity-80 text-slate-500')}>
                   {label}
                 </span>
                 {isActive && (
                   <span
                     className={cn(
-                      'absolute bottom-0 h-0.5 w-8 rounded-full animate-slide-up',
-                      isGold ? 'bg-amber-500' : 'bg-indigo-600 dark:bg-indigo-400'
+                      'absolute bottom-0 h-0.5 w-8 rounded-full',
+                      isGold ? 'bg-amber-600' : 'bg-slate-900'
                     )}
                   />
                 )}

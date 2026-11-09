@@ -109,7 +109,14 @@ export const storage = {
   getSettings(): AppSettings {
     try {
       const raw = localStorage.getItem('qr-scan-settings');
-      if (raw) return { ...defaultSettings, ...JSON.parse(raw) };
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        // Default to light mode (never force AI dark mode)
+        if (!parsed.theme || parsed.theme === 'system') {
+          parsed.theme = 'light';
+        }
+        return { ...defaultSettings, ...parsed };
+      }
     } catch {}
     return defaultSettings;
   },
@@ -120,7 +127,7 @@ export const storage = {
 };
 
 export const defaultSettings: AppSettings = {
-  theme: 'system',
+  theme: 'light',
   autoSave: true,
   vibrate: true,
   sound: true,

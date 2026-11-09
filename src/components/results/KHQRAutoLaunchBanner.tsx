@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   ArrowUpRight,
-  Sparkles,
   Copy,
   Check,
   Download,
@@ -65,12 +64,12 @@ export const KHQRAutoLaunchBanner: React.FC<KHQRAutoLaunchBannerProps> = ({
   };
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border-2 border-red-500/30 dark:border-red-500/40 bg-gradient-to-br from-red-50 via-white to-amber-50/40 dark:from-red-950/40 dark:via-slate-900 dark:to-amber-950/20 p-4 shadow-lg shadow-red-500/5 space-y-3.5 animate-slide-up">
+    <div className="relative overflow-hidden rounded-2xl border border-red-200 bg-white p-4 shadow-xs space-y-3.5">
       {/* Top Tag: Auto Option & Device Platform Pill */}
       <div className="flex items-center justify-between gap-2">
         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-600 text-white text-[11px] font-bold shadow-xs">
-          <Sparkles className="w-3.5 h-3.5 animate-spin-slow" />
-          <span>ជម្រើសស្វ័យប្រវត្តិ • Auto 1-Tap Pay</span>
+          <Landmark className="w-3.5 h-3.5" />
+          <span>ជម្រើសទូទាត់រហ័ស 1-Tap Pay</span>
         </div>
 
         {/* Platform Badge */}
@@ -134,26 +133,26 @@ export const KHQRAutoLaunchBanner: React.FC<KHQRAutoLaunchBannerProps> = ({
       {/* Primary 1-Click Launch Button */}
       <Button
         onClick={() => handleLaunch(primaryBank)}
-        className="w-full h-12 text-base font-bold shadow-md hover:shadow-lg transition-all gap-2 tracking-wide text-white"
+        className="w-full h-12 text-base font-bold shadow-xs hover:shadow transition-all gap-2 tracking-wide text-white"
         style={{ backgroundColor: primaryBank.color }}
       >
         <ArrowUpRight className="w-5 h-5" />
         <span>
           {isAba
-            ? '🚀 បើកទូទាត់ក្នុង ABA Mobile ភ្លាម'
-            : '🚀 បើកទូទាត់ក្នុង Bakong App ភ្លាម'}
+            ? 'បើកទូទាត់ក្នុង ABA Mobile'
+            : 'បើកទូទាត់ក្នុង Bakong App'}
         </span>
       </Button>
 
-      {/* Alternative Bank Button if needed (e.g. detected specific bank like ACLEDA or Wing while Bakong is primary) */}
+      {/* Alternative Bank Button if needed */}
       {!isAba && detectedBank.id !== 'bakong' && (
         <Button
           onClick={() => handleLaunch(detectedBank)}
-          className="w-full h-10 text-xs font-bold shadow-sm transition-all gap-1.5 text-white"
+          className="w-full h-10 text-xs font-bold shadow-xs transition-all gap-1.5 text-white"
           style={{ backgroundColor: detectedBank.color }}
         >
           <ArrowUpRight className="w-4 h-4" />
-          <span>បើកក្នុង {detectedBank.shortName} ({detectedBank.khmerName})</span>
+          <span>បើកក្នុង {detectedBank.shortName} - {detectedBank.khmerName}</span>
         </Button>
       )}
 
@@ -162,22 +161,22 @@ export const KHQRAutoLaunchBanner: React.FC<KHQRAutoLaunchBannerProps> = ({
         <Button
           variant="outline"
           onClick={() => handleLaunch(bakongBank)}
-          className="w-full h-9 text-xs font-semibold border-red-300 dark:border-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 gap-1.5"
+          className="w-full h-9 text-xs font-semibold border-red-300 text-red-600 hover:bg-red-50 gap-1.5"
         >
           <Landmark className="w-3.5 h-3.5 text-red-500" />
-          <span>ឬបើកក្នុង Bakong App (ធនាគារជាតិ NBC)</span>
+          <span>ឬបើកក្នុង Bakong App</span>
         </Button>
       )}
 
       {/* Quick Action Matrix (Copy, Save QR, View other banks) */}
-      <div className="grid grid-cols-3 gap-2 pt-1 border-t border-red-200/50 dark:border-white/5">
+      <div className="grid grid-cols-3 gap-2 pt-1 border-t border-slate-200">
         <Button
           variant="outline"
           size="sm"
           onClick={handleCopy}
-          className="text-[11px] h-8 gap-1 px-2 border-slate-200 dark:border-white/10"
+          className="text-[11px] h-8 gap-1 px-2 border-slate-200"
         >
-          {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+          {copied ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
           <span>{copied ? 'បានចម្លង!' : 'ចម្លងកូដ'}</span>
         </Button>
 
@@ -186,9 +185,9 @@ export const KHQRAutoLaunchBanner: React.FC<KHQRAutoLaunchBannerProps> = ({
           size="sm"
           onClick={handleDownload}
           loading={downloading}
-          className="text-[11px] h-8 gap-1 px-2 border-slate-200 dark:border-white/10"
+          className="text-[11px] h-8 gap-1 px-2 border-slate-200"
         >
-          <Download className="w-3 h-3 text-indigo-500" />
+          <Download className="w-3 h-3 text-slate-600" />
           <span>ទាញយក QR</span>
         </Button>
 
@@ -196,15 +195,15 @@ export const KHQRAutoLaunchBanner: React.FC<KHQRAutoLaunchBannerProps> = ({
           variant="outline"
           size="sm"
           onClick={onOpenAllBanks}
-          className="text-[11px] h-8 gap-1 px-2 border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300"
+          className="text-[11px] h-8 gap-1 px-2 border-slate-200 text-slate-700"
         >
-          <Landmark className="w-3 h-3 text-amber-500" />
+          <Landmark className="w-3 h-3 text-slate-600" />
           <span>ធនាគារទាំងអស់</span>
         </Button>
       </div>
 
-      <p className="text-[10px] text-slate-500 dark:text-slate-400 text-center leading-normal">
-        💡 តំណភ្ជាប់ត្រូវបានត្រួតពិនិត្យ និងដំណើរការបានទាំងស្រុងលើ iPhone (iOS) និង Android ដោយគ្មាន Error Invalid Address ឡើយ។
+      <p className="text-[10px] text-slate-500 text-center leading-normal">
+        តំណភ្ជាប់ត្រូវបានត្រួតពិនិត្យ និងដំណើរការបានទាំងស្រុងលើ iPhone និង Android ដោយគ្មាន Error ឡើយ។
       </p>
     </div>
   );

@@ -29,7 +29,7 @@ const CHECKOUT_URL = 'https://link.payway.com.kh/ABAPAYbR5506511';
 let globalCfCookieJar = '';
 
 function mergeCookies(existingJar, res) {
-  const setCookies = res.headers.getSetCookie ? res.headers.getSetCookie() : [res.headers.get('set-cookie') || ''];
+  const setCookies = res?.headers?.getSetCookie ? res.headers.getSetCookie() : [res?.headers?.get?.('set-cookie') || ''];
   const newCookies = setCookies.map((c) => (c ? c.split(';')[0].trim() : '')).filter(Boolean);
   if (newCookies.length === 0) return existingJar;
 

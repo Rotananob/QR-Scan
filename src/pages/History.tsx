@@ -111,8 +111,8 @@ export const HistoryPage: React.FC = () => {
                 VIP UNLIMITED
               </span>
             ) : (
-              <span className="text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-white/10 px-2 py-0.5 rounded-full">
-                Free ({history.length}/20)
+              <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
+                Free {history.length}/20
               </span>
             )}
           </div>
@@ -123,23 +123,23 @@ export const HistoryPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleExportCSV}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-white/10 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors shadow-sm"
-                  title={isLifetime ? 'Export CSV' : 'Export (VIP Required)'}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-xs"
+                  title={isLifetime ? 'Export CSV' : 'Export សម្រាប់ VIP'}
                 >
-                  <Download className="w-3.5 h-3.5 text-indigo-500" />
+                  <Download className="w-3.5 h-3.5 text-slate-600" />
                   <span>CSV</span>
-                  {!isLifetime && <Crown className="w-3 h-3 text-amber-500 ml-0.5" />}
+                  {!isLifetime && <Crown className="w-3 h-3 text-amber-600 ml-0.5" />}
                 </button>
 
                 <button
                   type="button"
                   onClick={handleExportJSON}
-                  className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-white/10 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors shadow-sm"
-                  title={isLifetime ? 'Export JSON' : 'Export (VIP Required)'}
+                  className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-xs"
+                  title={isLifetime ? 'Export JSON' : 'Export សម្រាប់ VIP'}
                 >
-                  <Download className="w-3.5 h-3.5 text-amber-500" />
+                  <Download className="w-3.5 h-3.5 text-slate-600" />
                   <span>JSON</span>
-                  {!isLifetime && <Crown className="w-3 h-3 text-amber-500 ml-0.5" />}
+                  {!isLifetime && <Crown className="w-3 h-3 text-amber-600 ml-0.5" />}
                 </button>
               </>
             )}
@@ -149,7 +149,7 @@ export const HistoryPage: React.FC = () => {
                 variant="ghost"
                 size="sm"
                 onClick={() => setClearConfirmOpen(true)}
-                className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 gap-1.5"
+                className="text-red-600 hover:bg-red-50 gap-1.5"
                 aria-label={t('history.clearAll')}
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -160,17 +160,17 @@ export const HistoryPage: React.FC = () => {
         </div>
 
         {!isLifetime && (
-          <div className="flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-amber-500/10 via-indigo-500/10 to-transparent border border-amber-500/25 text-xs shadow-xs">
+          <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs shadow-xs">
             <div className="flex items-center gap-2">
-              <Crown className="w-4 h-4 text-amber-500 shrink-0" />
-              <div className="text-slate-700 dark:text-slate-300">
-                <span className="font-bold text-slate-900 dark:text-white">កូតា Free:</span> រក្សាទុកបានត្រឹម ២០ កូដ ({history.length}/20)។ Upgrade VIP ដើម្បីរក្សាទុកគ្មានដែនកំណត់ & Export!
+              <Crown className="w-4 h-4 text-amber-600 shrink-0" />
+              <div className="text-slate-700">
+                <span className="font-bold text-slate-900">កូតា Free:</span> រក្សាទុកបានត្រឹម ២០ កូដ ចំនួន {history.length}/20។ Upgrade VIP ដើម្បីរក្សាទុកគ្មានដែនកំណត់ និង Export!
               </div>
             </div>
             <button
               type="button"
               onClick={() => navigate('/upgrade')}
-              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white font-bold text-[11px] shadow-sm shrink-0 ml-2"
+              className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-[11px] shadow-xs shrink-0 ml-2"
             >
               Upgrade VIP
             </button>

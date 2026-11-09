@@ -141,7 +141,7 @@ export const ScannerOverlay: React.FC<ScannerOverlayProps> = ({
             : t('scanner.pointAtCode', 'តម្រង់កាមេរ៉ាទៅកាន់កូដ QR ឬ បាកូដ')}
         </div>
         <p className="text-[10px] text-white/60">
-          {t('scanner.tapToFocus', 'ចុចលើអេក្រង់ដើម្បីផ្ដោតច្បាស់ (Tap to Focus)')}
+          {t('scanner.tapToFocus', 'ចុចលើអេក្រង់ដើម្បីផ្ដោតច្បាស់')}
         </p>
       </div>
     </div>

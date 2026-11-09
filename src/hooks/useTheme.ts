@@ -3,11 +3,12 @@ import { storage } from '../services/storage';
 import type { AppSettings } from '../types/qr';
 
 export function useTheme() {
-  const [settings, setSettings] = useState<AppSettings>(storage.getSettings());
+  const [settings, setSettings] = useState<AppSettings>(() => {
+    const s = storage.getSettings();
+    return s.theme === 'system' ? { ...s, theme: 'light' } : s;
+  });
 
-  const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const isDark =
-    settings.theme === 'dark' || (settings.theme === 'system' && systemDark);
+  const isDark = settings.theme === 'dark';
 
   useEffect(() => {
     const root = document.documentElement;
@@ -17,19 +18,6 @@ export function useTheme() {
       root.classList.remove('dark');
     }
   }, [isDark]);
-
-  useEffect(() => {
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const handler = () => {
-      if (settings.theme === 'system') {
-        const root = document.documentElement;
-        if (mq.matches) root.classList.add('dark');
-        else root.classList.remove('dark');
-      }
-    };
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, [settings.theme]);
 
   const updateSettings = useCallback((updates: Partial<AppSettings>) => {
     setSettings((prev) => {

@@ -38,10 +38,7 @@ const AppShell: React.FC = () => {
   }, [user, loading]);
 
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white overflow-hidden relative selection:bg-indigo-500/30">
-      {/* Subtle modern background gradient (visible mainly in dark mode) */}
-      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-900/10 via-slate-950/0 to-slate-950/0 dark:from-indigo-500/5 dark:via-slate-950/0 dark:to-slate-950/0" />
-
+    <div className="flex h-screen bg-slate-100/80 text-slate-900 overflow-hidden relative selection:bg-slate-200">
       {/* Sidebar (desktop only) */}
       {isDesktop && <Sidebar />}
 

@@ -69,7 +69,7 @@ export const CameraControls: React.FC<CameraControlsProps> = ({
             size="icon"
             onClick={onSwitchCamera}
             aria-label="Switch camera"
-            title="ប្តូរកាមេរ៉ា (Switch Camera)"
+            title="ប្តូរកាមេរ៉ា"
             className="bg-black/40 backdrop-blur-md text-white hover:bg-black/60 rounded-full w-10 h-10 border border-white/10 transition-transform active:rotate-180"
           >
             <FlipHorizontal2 className="w-4 h-4" />

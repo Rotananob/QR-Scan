@@ -13,7 +13,6 @@ import {
   Crown,
   Palette,
   Check,
-  Sparkles,
   Cloud,
   FileCode2,
   BookmarkCheck,
@@ -394,7 +393,7 @@ export const GeneratorPage: React.FC = () => {
       a.download = `qrcode_vector_${type.toLowerCase()}_${Date.now()}.svg`;
       a.click();
       URL.revokeObjectURL(dlUrl);
-      showToast('ទាញយក Vector SVG ជោគជ័យ (Print Ready)', 'success');
+      showToast('ទាញយក Vector SVG ជោគជ័យ', 'success');
     } catch (e) {
       console.error('[SVG Export error]:', e);
     }
@@ -453,9 +452,9 @@ export const GeneratorPage: React.FC = () => {
   };
 
   const types = [
-    { id: 'URL', label: 'Link / URL', icon: LinkIcon },
-    { id: 'KHQR', label: 'KHQR (Bank)', icon: Landmark },
-    { id: 'TEXT', label: 'អត្ថបទ (Text)', icon: FileText },
+    { id: 'URL', label: 'Link URL', icon: LinkIcon },
+    { id: 'KHQR', label: 'KHQR ធនាគារ', icon: Landmark },
+    { id: 'TEXT', label: 'អត្ថបទ', icon: FileText },
     { id: 'WIFI', label: 'Wi-Fi Network', icon: Wifi },
     { id: 'PHONE', label: 'លេខទូរស័ព្ទ', icon: Phone },
     { id: 'EMAIL', label: 'អ៊ីមែល', icon: Mail },
@@ -463,12 +462,12 @@ export const GeneratorPage: React.FC = () => {
   ];
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6 space-y-6 animate-fade-in">
+    <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <QrCode className="w-6 h-6 text-indigo-500" />
-            Pro QR Studio (Generator)
+            <QrCode className="w-6 h-6 text-slate-800 dark:text-slate-200" />
+            បង្កើត QR Code Studio
             {isLifetime && (
               <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center gap-1">
                 <Crown className="w-3 h-3 text-amber-500" />
@@ -544,7 +543,7 @@ export const GeneratorPage: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <Landmark className="w-4 h-4 text-red-500" />
                     <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                      ស្តង់ដារ KHQR ជាតិ (Bakong & ABA Ready)
+                      ស្តង់ដារ KHQR ជាតិ
                     </span>
                   </div>
                   <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-red-600 text-white">
@@ -571,7 +570,7 @@ export const GeneratorPage: React.FC = () => {
 
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                      ឈ្មោះហាង / អ្នកទទួល (Merchant Name)
+                      ឈ្មោះហាង ឬអ្នកទទួល
                     </label>
                     <input
                       type="text"
@@ -586,7 +585,7 @@ export const GeneratorPage: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                      ចំនួនទឹកប្រាក់ (ទុកទំនេរបើមិនកំណត់)
+                      ចំនួនទឹកប្រាក់
                     </label>
                     <input
                       type="number"
@@ -594,7 +593,7 @@ export const GeneratorPage: React.FC = () => {
                       min="0"
                       value={khqrAmount}
                       onChange={(e) => setKhqrAmount(e.target.value)}
-                      placeholder="0.00 (ទុកទំនេរបើចង់ឱ្យអ្នកផ្ញើវាយលុយ)"
+                      placeholder="0.00 ទុកទំនេរបើមិនកំណត់"
                       className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
                     />
                   </div>
@@ -608,8 +607,8 @@ export const GeneratorPage: React.FC = () => {
                       onChange={(e) => setKhqrCurrency(e.target.value as 'USD' | 'KHR')}
                       className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
                     >
-                      <option value="USD">USD ($) ដុល្លារ</option>
-                      <option value="KHR">KHR (៛) រៀល</option>
+                      <option value="USD">USD ដុល្លារ</option>
+                      <option value="KHR">KHR រៀល</option>
                     </select>
                   </div>
                 </div>
@@ -619,7 +618,7 @@ export const GeneratorPage: React.FC = () => {
             {type === 'TEXT' && (
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                  អត្ថបទ (Text)
+                  អត្ថបទ
                 </label>
                 <textarea
                   rows={4}
@@ -666,9 +665,9 @@ export const GeneratorPage: React.FC = () => {
                     onChange={(e) => setWifiType(e.target.value as any)}
                     className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
-                    <option value="WPA">WPA / WPA2 / WPA3 (ទូទៅ)</option>
+                    <option value="WPA">WPA / WPA2 / WPA3</option>
                     <option value="WEP">WEP</option>
-                    <option value="nopass">គ្មានពាក្យសម្ងាត់ (Open)</option>
+                    <option value="nopass">គ្មានពាក្យសម្ងាត់</option>
                   </select>
                 </div>
               </div>
@@ -677,7 +676,7 @@ export const GeneratorPage: React.FC = () => {
             {type === 'PHONE' && (
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                  លេខទូរស័ព្ទ (Phone Number)
+                  លេខទូរស័ព្ទ
                 </label>
                 <input
                   type="tel"
@@ -705,7 +704,7 @@ export const GeneratorPage: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                    ប្រធានបទ (Subject)
+                    ប្រធានបទ
                   </label>
                   <input
                     type="text"
@@ -717,7 +716,7 @@ export const GeneratorPage: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                    ខ្លឹមសារ (Body)
+                    ខ្លឹមសារ
                   </label>
                   <textarea
                     rows={3}
@@ -788,8 +787,8 @@ export const GeneratorPage: React.FC = () => {
           <div className="p-5 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-sm space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-amber-500" />
-                Designer Themes (ស្ទីលពណ៌ពិសេស)
+                <Palette className="w-4 h-4 text-slate-700 dark:text-slate-300" />
+                ស្ទីលពណ៌ Designer Themes
               </span>
               {!isLifetime && (
                 <span className="text-[10px] font-bold text-amber-500 bg-amber-500/15 px-2 py-0.5 rounded-full border border-amber-500/20 flex items-center gap-1">
@@ -834,7 +833,7 @@ export const GeneratorPage: React.FC = () => {
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                 <Crown className="w-4 h-4 text-amber-500" />
-                Center Logo & Action Frame (VIP)
+                Logo កណ្តាល និង Frame
               </span>
               <span className="text-[10px] font-bold text-amber-500 bg-amber-500/15 px-2 py-0.5 rounded-full border border-amber-500/20 flex items-center gap-1">
                 <Crown className="w-3 h-3" />
@@ -845,7 +844,7 @@ export const GeneratorPage: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-[11px] font-medium text-slate-500 mb-1.5 flex items-center justify-between">
-                  <span>Logo កណ្តាល (Center Badge)</span>
+                  <span>Logo កណ្តាល</span>
                   {!isLifetime && <span className="text-[10px] text-amber-500 font-bold">Lock for Free</span>}
                 </label>
                 <div className="grid grid-cols-3 gap-1.5">
@@ -891,12 +890,12 @@ export const GeneratorPage: React.FC = () => {
                 >
                   {FRAME_OPTIONS.map((f) => (
                     <option key={f.id} value={f.id}>
-                      {f.label} {f.vip && !isLifetime ? '🔒 (VIP)' : ''}
+                      {f.label} {f.vip && !isLifetime ? 'VIP' : ''}
                     </option>
                   ))}
                 </select>
                 <p className="text-[10px] text-slate-400 mt-1">
-                  បន្ថែមបន្ទះ Frame ខាងក្រោម QR ងាយស្រួលមើល {!isLifetime && '(សម្រាប់ VIP)'}
+                  បន្ថែមបន្ទះ Frame ខាងក្រោម QR ងាយស្រួលមើល {!isLifetime && 'សម្រាប់ VIP'}
                 </p>
               </div>
             </div>
@@ -906,8 +905,8 @@ export const GeneratorPage: React.FC = () => {
           <div className="p-5 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                <Palette className="w-4 h-4 text-indigo-500" />
-                កែប្រែពណ៌ & ទំហំលម្អិត (Custom Colors)
+                <Palette className="w-4 h-4 text-slate-700 dark:text-slate-300" />
+                កែប្រែពណ៌ និងទំហំលម្អិត
               </span>
               {!isLifetime && (
                 <span className="text-[10px] font-bold text-amber-500 bg-amber-500/15 px-2 py-0.5 rounded-full border border-amber-500/20 flex items-center gap-1">
@@ -920,7 +919,7 @@ export const GeneratorPage: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block text-[11px] font-medium text-slate-500 mb-1 flex items-center justify-between">
-                  <span>ពណ៌កូដ (QR Color)</span>
+                  <span>ពណ៌កូដ</span>
                   {!isLifetime && <Lock className="w-3 h-3 text-amber-500" />}
                 </label>
                 <div className="flex items-center gap-2">
@@ -943,7 +942,7 @@ export const GeneratorPage: React.FC = () => {
 
               <div>
                 <label className="block text-[11px] font-medium text-slate-500 mb-1 flex items-center justify-between">
-                  <span>ពណ៌ផ្ទៃក្រោយ (Background)</span>
+                  <span>ពណ៌ផ្ទៃក្រោយ</span>
                   {!isLifetime && <Lock className="w-3 h-3 text-amber-500" />}
                 </label>
                 <div className="flex items-center gap-2">
@@ -966,7 +965,7 @@ export const GeneratorPage: React.FC = () => {
 
               <div>
                 <label className="block text-[11px] font-medium text-slate-500 mb-1 flex items-center justify-between">
-                  <span>ទំហំ (Resolution)</span>
+                  <span>ទំហំ Resolution</span>
                   {!isLifetime && <span className="text-[10px] text-amber-500">HD = VIP</span>}
                 </label>
                 <select
@@ -974,10 +973,10 @@ export const GeneratorPage: React.FC = () => {
                   onChange={(e) => handleSelectResolution(Number(e.target.value))}
                   className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-white/10 rounded-lg text-xs font-medium"
                 >
-                  <option value={300}>300 x 300 px (មធ្យម - Free)</option>
-                  <option value={400}>400 x 400 px (ធំច្បាស់ - Free)</option>
-                  <option value={512}>512 x 512 px (HD {!isLifetime ? '🔒 VIP' : ''})</option>
-                  <option value={1024}>1024 x 1024 px (Ultra HD {!isLifetime ? '🔒 VIP' : ''})</option>
+                  <option value={300}>300 x 300 px - Free</option>
+                  <option value={400}>400 x 400 px - Free</option>
+                  <option value={512}>512 x 512 px HD {!isLifetime ? 'VIP' : ''}</option>
+                  <option value={1024}>1024 x 1024 px Ultra HD {!isLifetime ? 'VIP' : ''}</option>
                 </select>
               </div>
             </div>
@@ -988,9 +987,9 @@ export const GeneratorPage: React.FC = () => {
         <div className="lg:col-span-5 flex flex-col items-center justify-start space-y-4">
           <div className="w-full p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-xl flex flex-col items-center justify-center text-center space-y-5 sticky top-20">
             <div className="w-full flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-indigo-500" />
-                Live Studio Preview
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                <QrCode className="w-4 h-4 text-slate-700 dark:text-slate-300" />
+                ផ្ទាំងបង្ហាញផ្ទាល់
               </span>
               <span className="text-[10px] font-mono text-slate-400">
                 {qrSize}x{qrSize + (frameText ? 56 : 0)}px
@@ -1019,7 +1018,7 @@ export const GeneratorPage: React.FC = () => {
                   type="button"
                   disabled={!qrDataUrl}
                   onClick={handleDownloadPNG}
-                  className="py-3 px-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-bold text-xs shadow-md shadow-indigo-600/20 flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                  className="py-3 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white font-bold text-xs shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-95"
                 >
                   <Download className="w-4 h-4" />
                   ទាញយក PNG
@@ -1028,10 +1027,10 @@ export const GeneratorPage: React.FC = () => {
                   type="button"
                   disabled={!qrDataUrl}
                   onClick={handleDownloadSVG}
-                  className="py-3 px-3 rounded-2xl bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 disabled:opacity-40 text-white font-bold text-xs shadow-md shadow-amber-500/20 flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                  className="py-3 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white font-bold text-xs shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-95"
                 >
                   <FileCode2 className="w-4 h-4" />
-                  Vector SVG (VIP)
+                  Vector SVG VIP
                 </button>
               </div>
 
@@ -1049,7 +1048,7 @@ export const GeneratorPage: React.FC = () => {
                   type="button"
                   disabled={!qrDataUrl}
                   onClick={handleSaveToCloud}
-                  className="py-2.5 px-3 rounded-xl border border-indigo-200 dark:border-indigo-800/40 bg-indigo-50/50 dark:bg-indigo-950/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                  className="py-2.5 px-3 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95"
                 >
                   {saved ? <BookmarkCheck className="w-4 h-4 text-emerald-500" /> : <Cloud className="w-4 h-4" />}
                   {saved ? 'បានរក្សាទុក' : 'Save to Cloud'}
@@ -1061,10 +1060,10 @@ export const GeneratorPage: React.FC = () => {
                 type="button"
                 disabled={!qrDataUrl}
                 onClick={() => setStandeeOpen(true)}
-                className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 hover:from-red-500 hover:to-amber-500 disabled:opacity-40 text-white font-bold text-xs shadow-md shadow-red-600/20 flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                className="w-full py-2.5 px-3 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-40 text-white font-bold text-xs shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-95"
               >
                 <Printer className="w-4 h-4" />
-                <span>🪧 បង្កើតស្លាក Standee តុ (Print & Standee)</span>
+                <span>បង្កើតស្លាក Standee តុ</span>
               </button>
             </div>
           </div>

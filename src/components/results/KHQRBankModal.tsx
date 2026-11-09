@@ -7,7 +7,6 @@ import {
   Smartphone,
   ArrowUpRight,
   ShieldCheck,
-  Sparkles,
 } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
@@ -68,13 +67,13 @@ export const KHQRBankModal: React.FC<KHQRBankModalProps> = ({
     <Modal
       open={open}
       onClose={onClose}
-      title="ជ្រើសរើសធនាគារដើម្បីទូទាត់ (Pay with Mobile Banking)"
+      title="ជ្រើសរើសធនាគារដើម្បីទូទាត់"
     >
       <div className="space-y-4">
         {/* Merchant & Detected Bank Banner */}
         <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200/60 dark:border-white/10 space-y-1.5">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-slate-500 dark:text-slate-400">គណនីទទួលប្រាក់ (Beneficiary)</span>
+            <span className="text-slate-500 dark:text-slate-400">គណនីទទួលប្រាក់</span>
             <div className="flex items-center gap-1.5">
               <span className="px-2 py-0.5 rounded-full font-semibold text-[11px] bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
                 {detectedBank.shortName}
@@ -104,7 +103,6 @@ export const KHQRBankModal: React.FC<KHQRBankModalProps> = ({
             <div>
               <p className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1">
                 <span>បាគង Bakong App</span>
-                <Sparkles className="w-3 h-3 text-red-500" />
               </p>
               <p className="text-[10px] text-slate-500 dark:text-slate-400">
                 ទូទាត់បានគ្រប់ធនាគារទាំងអស់នៅកម្ពុជា
@@ -124,7 +122,7 @@ export const KHQRBankModal: React.FC<KHQRBankModalProps> = ({
         {/* Bank List */}
         <div className="space-y-2 max-h-[44vh] overflow-y-auto pr-1">
           <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-            ធនាគារក្នុងស្រុក (Cambodian Mobile Banking)
+            ធនាគារក្នុងស្រុក
           </p>
 
           <div className="space-y-2">
@@ -219,7 +217,7 @@ export const KHQRBankModal: React.FC<KHQRBankModalProps> = ({
           <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-900/40 text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed flex items-start gap-2">
             <Smartphone className="w-4 h-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
             <p>
-              <strong>វិធីទូទាត់ងាយស្រួលបំផុត៖</strong> ចុច <strong>"ទាញយករូបភាព QR"</strong> ទុកក្នុងទូរស័ព្ទ រួចបើក App ធនាគារណាមួយ (ABA, Bakong, ACLEDA, Wing...) ហើយចុចលើប៊ូតុង <strong>"Scan ពីរូបភាព (Scan from Photo)"</strong> ដើម្បីទូទាត់ប្រាក់ភ្លាមៗ!
+              <strong>វិធីទូទាត់ងាយស្រួលបំផុត៖</strong> ចុច <strong>"ទាញយករូបភាព QR"</strong> ទុកក្នុងទូរស័ព្ទ រួចបើក App ធនាគារណាមួយដូចជា ABA, Bakong, ACLEDA, Wing ហើយចុចលើប៊ូតុង <strong>"Scan ពីរូបភាព"</strong> ដើម្បីទូទាត់ប្រាក់ភ្លាមៗ។
             </p>
           </div>
         </div>

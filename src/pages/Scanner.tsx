@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useContext } from 'react';
-import { Upload, Keyboard, Sparkles, Layers, Download, Trash2, Copy } from 'lucide-react';
+import { Upload, Keyboard, Layers, Download, Trash2, Copy } from 'lucide-react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { useTranslation } from 'react-i18next';
 import { QRScanner } from '../components/scanner/QRScanner';
@@ -302,13 +302,13 @@ export const ScannerPage: React.FC = () => {
         invScanner.clear();
         setPreviewImage(previewUrl);
         handleDetected(invRes.decodedText, invRes.result?.format?.formatName || 'QR_CODE');
-        showToast('ស្កេនជោគជ័យដោយ AI Invert Color (White-on-Black QR)', 'success');
+        showToast('ស្កេនជោគជ័យ', 'success');
         return;
       } catch (invErr) {
-        console.warn('[AI Inverter] Not decoded:', invErr);
+        console.warn('[Inverter] Not decoded:', invErr);
       }
 
-      // 5. AI High-Contrast Recovery for faint / damaged QR codes
+      // 5. High-Contrast Recovery for faint / damaged QR codes
       try {
         const hcCanvas = await createProcessedCanvas(file, 'high_contrast');
         const hcFile = await canvasToFile(hcCanvas, 'contrast.png');
@@ -320,13 +320,13 @@ export const ScannerPage: React.FC = () => {
         hcScanner.clear();
         setPreviewImage(previewUrl);
         handleDetected(hcRes.decodedText, hcRes.result?.format?.formatName || 'QR_CODE');
-        showToast('ស្កេនជោគជ័យដោយ AI High Contrast Enhancement', 'success');
+        showToast('ស្កេនជោគជ័យ', 'success');
         return;
       } catch (hcErr) {
-        console.warn('[AI High-Contrast] Not decoded:', hcErr);
+        console.warn('[High-Contrast] Not decoded:', hcErr);
       }
 
-      throw new Error('No QR found across all AI algorithms');
+      throw new Error('No QR found');
     } catch {
       URL.revokeObjectURL(previewUrl);
       showToast(t('scanner.noQrFound'), 'error');
@@ -338,16 +338,12 @@ export const ScannerPage: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-full">
-      {/* Title Header with Pro Badge */}
+      {/* Title Header */}
       <div className="px-4 pt-4 pb-2 text-center">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 border border-indigo-500/20 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 mb-1.5 shadow-sm">
-          <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
-          <span>{t('scanner.proBadge', 'Ultra HD AI Scanner • Scan All Formats')}</span>
-        </div>
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">
+        <h2 className="text-xl font-bold text-slate-900 tracking-tight">
           {t('scanner.title')}
         </h2>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+        <p className="text-xs text-slate-500 mt-0.5">
           {t('scanner.subtitle')}
         </p>
       </div>
@@ -357,31 +353,31 @@ export const ScannerPage: React.FC = () => {
         {!result ? (
           <>
             {/* Single vs Continuous Batch Mode Switcher */}
-            <div className="flex items-center justify-between p-1 bg-slate-200/60 dark:bg-slate-800/60 backdrop-blur-md rounded-xl max-w-sm mx-auto w-full border border-slate-300/40 dark:border-white/5 shadow-inner">
+            <div className="flex items-center justify-between p-1 bg-slate-200/80 rounded-xl max-w-sm mx-auto w-full border border-slate-300/50 shadow-inner">
               <button
                 type="button"
                 onClick={() => setIsBatchMode(false)}
                 className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all ${
                   !isBatchMode
-                    ? 'bg-white dark:bg-indigo-600 text-slate-900 dark:text-white shadow-xs'
-                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
-                ⚡ {t('scanner.singleMode', 'ស្កេនទោល (Single)')}
+                {t('scanner.singleMode', 'ស្កេនទោល')}
               </button>
               <button
                 type="button"
                 onClick={() => setIsBatchMode(true)}
                 className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                   isBatchMode
-                    ? 'bg-white dark:bg-indigo-600 text-slate-900 dark:text-white shadow-xs'
-                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
                 <Layers className="w-3.5 h-3.5" />
-                <span>{t('scanner.batchMode', 'ស្កេនបន្តបន្ទាប់ (Batch)')}</span>
+                <span>{t('scanner.batchMode', 'ស្កេនបន្តបន្ទាប់')}</span>
                 {batchItems.length > 0 && (
-                  <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-extrabold">
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-100 text-slate-800 font-extrabold border border-slate-200">
                     {batchItems.reduce((acc, it) => acc + it.count, 0)}
                   </span>
                 )}
@@ -430,8 +426,8 @@ export const ScannerPage: React.FC = () => {
                       <Layers className="w-4 h-4" />
                     </span>
                     <div>
-                      <h4 className="text-xs font-bold text-slate-900 dark:text-white leading-tight">
-                        បញ្ជីស្កេនបន្តបន្ទាប់ ({batchItems.length} មុខ)
+                      <h4 className="text-xs font-bold text-slate-900 leading-tight">
+                        បញ្ជីស្កេនបន្តបន្ទាប់: {batchItems.length} មុខ
                       </h4>
                       <p className="text-[11px] text-slate-500 dark:text-slate-400">
                         សរុប {batchItems.reduce((acc, it) => acc + it.count, 0)} បំណែក

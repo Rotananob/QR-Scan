@@ -20,10 +20,10 @@ const ThemeOption: React.FC<{
   <button
     onClick={onSelect}
     aria-pressed={current === value}
-    className={`flex-1 flex flex-col items-center gap-2 py-3 px-2 rounded-xl border-2 transition-all ${
+    className={`flex-1 flex flex-col items-center gap-2 py-3 px-2 rounded-xl border transition-all ${
       current === value
-        ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300'
-        : 'border-gray-200 dark:border-white/10 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-white/20'
+        ? 'border-slate-900 bg-slate-100 text-slate-900 font-bold shadow-xs'
+        : 'border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-800'
     }`}
   >
     {icon}
@@ -92,10 +92,10 @@ export const SettingsPage: React.FC = () => {
       <div className="flex-1 px-4 pb-24 space-y-5 max-w-lg mx-auto w-full">
         {/* VIP Membership & Account Status */}
         <section>
-          <div className="p-5 rounded-3xl bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 border border-indigo-500/20 text-white relative overflow-hidden shadow-xl">
+          <div className="p-5 rounded-2xl bg-white border border-slate-200 text-slate-900 shadow-xs">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                <div className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-amber-600">
                   <Crown className="w-4 h-4" />
                 </div>
                 <span className="font-bold text-sm">
@@ -104,16 +104,16 @@ export const SettingsPage: React.FC = () => {
               </div>
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
                 isLifetime
-                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                  : 'bg-white/10 text-slate-300'
+                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                  : 'bg-slate-100 text-slate-600 border border-slate-200'
               }`}>
-                {isLifetime ? 'មួយជីវិត (Active)' : 'Free'}
+                {isLifetime ? 'មួយជីវិត' : 'Free'}
               </span>
             </div>
 
-            <p className="text-xs text-slate-300 mb-4 leading-relaxed">
+            <p className="text-xs text-slate-600 mb-4 leading-relaxed">
               {isLifetime
-                ? 'អ្នកកំពុងរីករាយជាមួយមុខងារ VIP ពេញលេញ រួមមាន Cloud Sync, Pro Generator, និង Unlimited History។'
+                ? 'អ្នកកំពុងរីករាយជាមួយមុខងារ VIP ពេញលេញ រួមមាន Cloud Sync មុខងារបង្កើត QR និងប្រវត្តិគ្មានដែនកំណត់។'
                 : 'ជាវ Lifetime VIP ត្រឹមតែ $3.00 មួយជីវិត ដើម្បីដោះសោមុខងារគ្មានដែនកំណត់។'}
             </p>
 
@@ -122,17 +122,17 @@ export const SettingsPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => navigate('/upgrade')}
-                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white font-bold text-xs shadow-md shadow-indigo-500/20 flex items-center gap-1.5 transition-all"
+                  className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 transition-all"
                 >
-                  <Crown className="w-3.5 h-3.5 text-amber-300" />
-                  ជាវ Lifetime ($3.00)
+                  <Crown className="w-3.5 h-3.5 text-amber-400" />
+                  ជាវ Lifetime $3.00
                   <ArrowRight className="w-3 h-3" />
                 </button>
               ) : (
                 <button
                   type="button"
                   onClick={() => navigate('/generate')}
-                  className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md transition-all"
+                  className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs transition-all"
                 >
                   ប្រើប្រាស់ QR Generator
                 </button>
@@ -141,10 +141,10 @@ export const SettingsPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => navigate('/auth')}
-                className="px-3.5 py-2.5 rounded-xl border border-white/15 hover:bg-white/10 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                className="px-3.5 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors"
               >
                 <User className="w-3.5 h-3.5 text-slate-400" />
-                {user ? (user.displayName || 'គណនី') : 'ចូលប្រើ (Login)'}
+                {user ? (user.displayName || 'គណនី') : 'ចូលប្រើប្រាស់'}
               </button>
             </div>
           </div>
@@ -164,7 +164,7 @@ export const SettingsPage: React.FC = () => {
                 className="flex-1 bg-transparent text-sm font-medium text-gray-900 dark:text-white focus:outline-none"
               >
                 <option value="en">English</option>
-                <option value="km">ខ្មែរ (Khmer)</option>
+                <option value="km">ភាសាខ្មែរ</option>
               </select>
             </div>
           </div>

@@ -128,8 +128,8 @@ export const ResultActions: React.FC<ResultActionsProps> = ({
               <ArrowUpRight className="w-5 h-5" />
               <span>
                 {isAba
-                  ? '🚀 បើកទូទាត់ក្នុង ABA Mobile'
-                  : '🚀 បើកទូទាត់ក្នុង Bakong App'}
+                  ? 'បើកទូទាត់ក្នុង ABA Mobile'
+                  : 'បើកទូទាត់ក្នុង Bakong App'}
               </span>
             </Button>
 
@@ -203,7 +203,7 @@ export const ResultActions: React.FC<ResultActionsProps> = ({
                 className="w-full gap-2"
               >
                 <BookOpen className="w-4 h-4 text-amber-500" />
-                {t('results.searchBooks', 'ស្វែងរកសៀវភៅ (Google Books)')}
+                {t('results.searchBooks', 'ស្វែងរកសៀវភៅ')}
               </Button>
             )}
           </div>
@@ -224,7 +224,7 @@ export const ResultActions: React.FC<ResultActionsProps> = ({
                 window.open(social.url, '_blank', 'noopener,noreferrer');
               }
             }}
-            className="w-full gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-md shadow-indigo-500/20"
+            className="w-full gap-2 bg-slate-900 hover:bg-slate-800 text-white shadow-xs"
             size="lg"
           >
             <ExternalLink className="w-4 h-4" />
@@ -241,7 +241,7 @@ export const ResultActions: React.FC<ResultActionsProps> = ({
           <div className="flex flex-col gap-2">
             <Button onClick={handleDownloadVCard} className="w-full gap-2" size="lg">
               <UserPlus className="w-4 h-4" />
-              {t('results.saveContact', 'រក្សាទុកក្នុងសៀវភៅទូរស័ព្ទ (.VCF)')}
+              {t('results.saveContact', 'រក្សាទុកក្នុងសៀវភៅទូរស័ព្ទ')}
             </Button>
             <div className="grid grid-cols-2 gap-2">
               {vcard?.phone && (
