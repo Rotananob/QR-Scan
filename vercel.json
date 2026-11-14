@@ -3,7 +3,16 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "functions": {
-    "api/*.js": {
+    "api/checkout.js": {
+      "maxDuration": 15
+    },
+    "api/check-status.js": {
+      "maxDuration": 15
+    },
+    "api/track.js": {
+      "maxDuration": 15
+    },
+    "api/telegram-webhook.js": {
       "maxDuration": 15
     }
   },

@@ -12,7 +12,6 @@
  */
 
 import crypto from 'crypto';
-import { buildBankDeeplinks, createPayment, KhqrGateway } from 'pay-helper';
 import { invoiceStore } from './_invoiceStore.js';
 import { getFirebaseAdmin, withFirestoreTimeout } from './_firebaseAdmin.js';
 import { signPaymentSession } from './_security.js';
@@ -310,23 +309,10 @@ async function createLivePaywayInvoice(amount = 3.00, currency = 'USD') {
     console.warn('[Checkout] Live PayWay attempt warning:', liveErr.message);
   }
 
-  // Resilient Failover: Authentic NBC Bakong KHQR synthesis via pay-helper
+  // Resilient Failover: Authentic NBC Bakong KHQR synthesis
   console.log('[Checkout] Activating authentic NBC Bakong KHQR failover engine...');
   const tranId = `VIP-${Date.now()}`;
-  let rawKhqr;
-  try {
-    const payment = createPayment({
-      merchantId: '126100713043212@abab',
-      merchantName: 'NOB ROTANA',
-      merchantCity: 'Phnom Penh',
-      amount: Number(amount),
-      currency: currency || 'USD',
-      billNumber: tranId,
-    });
-    rawKhqr = payment.qrString;
-  } catch {
-    rawKhqr = buildAbaKhqr(amount, currency, tranId);
-  }
+  const rawKhqr = buildAbaKhqr(amount, currency, tranId);
   const deeplinks = generateOfficialDeeplinks(rawKhqr);
 
   return {

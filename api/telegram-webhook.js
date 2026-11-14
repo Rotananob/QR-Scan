@@ -8,6 +8,7 @@ import { sendTelegramMessage, getAdminChatIds, setDynamicGroupChatId } from './_
 import { getFirebaseAdmin } from './_firebaseAdmin.js';
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8652045486:AAESDUgU15iP8CbYdLZwGdQBS22sWGo6UxQ';
+const OWNER_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '5969566967';
 
 export default async function handler(req, res) {
   // CORS & method verification
