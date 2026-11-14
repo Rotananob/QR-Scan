@@ -189,7 +189,7 @@ export const KhqrStandeeModal: React.FC<KhqrStandeeModalProps> = ({
             </span>
             <div>
               <h3 className="text-sm font-bold text-slate-900 dark:text-white leading-tight">
-                ស្លាក Standee តុ KHQR (Print & Table Tent)
+                ស្លាក Standee តុ KHQR សម្រាប់បោះពុម្ព
               </h3>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
                 រៀបចំស្លាកបញ្ជរ ឬលើតុសម្រាប់អតិថិជនស្កេនទូទាត់ប្រាក់

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Dangrek&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Kantumruy+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -29,7 +29,7 @@
 
   body {
     margin: 0;
-    font-family: 'Dangrek', system-ui, sans-serif;
+    font-family: 'Kantumruy Pro', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overscroll-behavior: none;
@@ -58,27 +58,31 @@
 
   /* Scanner frame corners */
   .scanner-corner-tl {
-    border-top: 3px solid #818cf8;
-    border-left: 3px solid #818cf8;
+    border-top: 3px solid #ffffff;
+    border-left: 3px solid #ffffff;
     border-top-left-radius: 8px;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
   }
 
   .scanner-corner-tr {
-    border-top: 3px solid #818cf8;
-    border-right: 3px solid #818cf8;
+    border-top: 3px solid #ffffff;
+    border-right: 3px solid #ffffff;
     border-top-right-radius: 8px;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
   }
 
   .scanner-corner-bl {
-    border-bottom: 3px solid #818cf8;
-    border-left: 3px solid #818cf8;
+    border-bottom: 3px solid #ffffff;
+    border-left: 3px solid #ffffff;
     border-bottom-left-radius: 8px;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
   }
 
   .scanner-corner-br {
-    border-bottom: 3px solid #818cf8;
-    border-right: 3px solid #818cf8;
+    border-bottom: 3px solid #ffffff;
+    border-right: 3px solid #ffffff;
     border-bottom-right-radius: 8px;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
   }
 }
 
@@ -94,9 +98,9 @@
     transform: translateX(var(--tw-translate-x));
   }
 
-  /* Shadow glow for scan corners */
-  .shadow-glow-indigo {
-    box-shadow: 0 0 8px 2px rgba(99, 102, 241, 0.7);
+  /* Subtle shadow */
+  .shadow-subtle {
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
   }
 
   /* Reduced motion */

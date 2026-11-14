@@ -58,33 +58,33 @@ export const ScannerOverlay: React.FC<ScannerOverlayProps> = ({
             isBarcodeMode ? 'w-[86%] h-36 max-w-[340px]' : 'w-64 h-64 sm:w-72 sm:h-72'
           }`}
         >
-          {/* Target Corner Brackets with Cyber Glow */}
+          {/* Viewfinder Target Corner Brackets */}
           <span
             className={`absolute -top-1 -left-1 w-8 h-8 border-t-3 border-l-3 rounded-tl-xl transition-colors duration-200 ${
               isDetected
-                ? 'border-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.9)]'
-                : 'border-indigo-400 shadow-glow-indigo'
+                ? 'border-emerald-500 shadow-sm'
+                : 'border-white drop-shadow-md'
             }`}
           />
           <span
             className={`absolute -top-1 -right-1 w-8 h-8 border-t-3 border-r-3 rounded-tr-xl transition-colors duration-200 ${
               isDetected
-                ? 'border-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.9)]'
-                : 'border-indigo-400 shadow-glow-indigo'
+                ? 'border-emerald-500 shadow-sm'
+                : 'border-white drop-shadow-md'
             }`}
           />
           <span
             className={`absolute -bottom-1 -left-1 w-8 h-8 border-b-3 border-l-3 rounded-bl-xl transition-colors duration-200 ${
               isDetected
-                ? 'border-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.9)]'
-                : 'border-indigo-400 shadow-glow-indigo'
+                ? 'border-emerald-500 shadow-sm'
+                : 'border-white drop-shadow-md'
             }`}
           />
           <span
             className={`absolute -bottom-1 -right-1 w-8 h-8 border-b-3 border-r-3 rounded-br-xl transition-colors duration-200 ${
               isDetected
-                ? 'border-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.9)]'
-                : 'border-indigo-400 shadow-glow-indigo'
+                ? 'border-emerald-500 shadow-sm'
+                : 'border-white drop-shadow-md'
             }`}
           />
 
@@ -92,7 +92,7 @@ export const ScannerOverlay: React.FC<ScannerOverlayProps> = ({
           <div
             className={`absolute inset-0 rounded-xl transition-colors duration-200 ${
               isDetected
-                ? 'border-2 border-emerald-400/80 bg-emerald-400/10'
+                ? 'border-2 border-emerald-500/80 bg-emerald-500/10'
                 : 'border border-white/20 bg-transparent'
             }`}
           />
@@ -104,13 +104,13 @@ export const ScannerOverlay: React.FC<ScannerOverlayProps> = ({
             </div>
           </div>
 
-          {/* High-tech Laser Scanning Line */}
+          {/* Laser Scanning Line */}
           {isScanning && !isDetected && (
             <div
               className={`absolute left-2 right-2 ${
                 isBarcodeMode
-                  ? 'h-0.5 bg-gradient-to-r from-transparent via-red-500 to-transparent shadow-[0_0_10px_rgba(239,68,68,0.9)]'
-                  : 'h-0.5 bg-gradient-to-r from-transparent via-indigo-400 to-transparent shadow-[0_0_12px_rgba(99,102,241,0.9)]'
+                  ? 'h-0.5 bg-red-500 shadow-sm'
+                  : 'h-0.5 bg-white/90 shadow-sm'
               } ${reducedMotion ? 'opacity-50' : 'animate-scan-line'}`}
             />
           )}
@@ -133,9 +133,9 @@ export const ScannerOverlay: React.FC<ScannerOverlayProps> = ({
       {/* Instruction Banner at Bottom */}
       <div className="absolute bottom-4 left-0 right-0 flex flex-col items-center gap-1 z-20 px-4">
         <div className="bg-black/70 backdrop-blur-md text-white text-xs px-3.5 py-1.5 rounded-full border border-white/10 shadow-lg text-center flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping" />
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
           {isKhqrMode
-            ? t('scanner.pointAtKhqr', 'តម្រង់ចំកណ្តាលកូដ KHQR / Bakong')
+            ? t('scanner.pointAtKhqr', 'តម្រង់ចំកណ្តាលកូដ KHQR ឬ Bakong')
             : isBarcodeMode
             ? t('scanner.pointAtBarcode', 'តម្រង់បន្ទាត់ក្រហមចំកណ្តាលបាកូដ')
             : t('scanner.pointAtCode', 'តម្រង់កាមេរ៉ាទៅកាន់កូដ QR ឬ បាកូដ')}

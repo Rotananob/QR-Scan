@@ -77,13 +77,13 @@ export const KHQRAutoLaunchBanner: React.FC<KHQRAutoLaunchBannerProps> = ({
           {platform === 'ios' && (
             <>
               <Apple className="w-3 h-3 text-slate-900 dark:text-white" />
-              <span>iPhone (iOS Scheme)</span>
+              <span>iPhone iOS</span>
             </>
           )}
           {platform === 'android' && (
             <>
               <Smartphone className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-              <span>Android (Intent URI)</span>
+              <span>Android Intent</span>
             </>
           )}
           {platform === 'desktop' && (

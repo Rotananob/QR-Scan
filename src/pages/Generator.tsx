@@ -40,7 +40,7 @@ const PRESET_THEMES = [
 ];
 
 const FRAME_OPTIONS = [
-  { id: '', label: 'គ្មាន Frame (Standard)', vip: false },
+  { id: '', label: 'គ្មាន Frame', vip: false },
   { id: 'SCAN ME', label: 'SCAN ME', vip: true },
   { id: 'CONNECT WI-FI', label: 'CONNECT WI-FI', vip: true },
   { id: 'VISIT WEBSITE', label: 'VISIT WEBSITE', vip: true },
@@ -522,7 +522,7 @@ export const GeneratorPage: React.FC = () => {
             {type === 'URL' && (
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                  គេហទំព័រ ឬ Link (URL)
+                  គេហទំព័រ ឬ Link
                 </label>
                 <input
                   type="url"
@@ -634,7 +634,7 @@ export const GeneratorPage: React.FC = () => {
               <div className="space-y-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                    ឈ្មោះ Wi-Fi (SSID)
+                    ឈ្មោះបណ្ដាញ Wi-Fi
                   </label>
                   <input
                     type="text"

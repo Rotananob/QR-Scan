@@ -8,7 +8,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Dangrek', 'system-ui', 'sans-serif'],
+        sans: ['"Kantumruy Pro"', 'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
       },
       colors: {
         gray: {
@@ -62,7 +62,7 @@ export default {
         '3': '3px',
       },
       boxShadow: {
-        'glow-indigo': '0 0 8px rgba(99, 102, 241, 0.6)',
+        'subtle': '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1)',
       },
     },
   },
